@@ -128,6 +128,20 @@ otherwise, the ``value`` option would not be available.
     since the compiler considers them non-existing according to the
     above logic even though they execute code and can return data.
 
+.. note::
+    Since the 0.8.10 release the compiler does not check ``extcodesize`` on
+    high-level external calls if return data is expected, because an empty code
+    will be unable to return data, and the ABI decoder will revert.
+    As a consequence, this allows high-level external calls to precompiled
+    contracts possible, since they can return data despite having no code
+    associated with their addresses.
+
+    Read about :ref:`precompiled contracts <precompiledContracts>` and 
+    :ref:`low-level calls <address_related>`
+    for more information.
+
+
+
 
 Function calls also cause exceptions if the called contract itself
 throws an exception or goes out of gas.
