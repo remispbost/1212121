@@ -614,10 +614,3 @@ precompiled contracts. It might also be possible that new
 precompiled contracts are added to the Ethereum main chain in the future,
 but you can reasonably expect them to always be in the range between
 ``1`` and ``0xffff`` (inclusive).
-
-.. warning::
-    Since the 0.8.10 release the compiler does not check ``extcodesize`` on external calls if return data is expected,
-    since an empty code will be unable to return data, and the ABI decoder will revert.
-    This is an exception for external calls over precompiled contracts which are able to return data without code associated with their addresses.
-
-    More on  :ref:`external function calls <external-function-calls>` and :ref:`low-level calls <address_related>`.
