@@ -2456,6 +2456,7 @@ std::string YulUtilFunctions::nextArrayElementFunction(ArrayType const& _type)
 			templ("advance", "0x20");
 			break;
 		case DataLocation::Storage:
+		case DataLocation::Transient:
 		{
 			u256 size = _type.baseType()->storageSize();
 			solAssert(size >= 1, "");

@@ -276,6 +276,8 @@ Type const* TypeProvider::fromElementaryTypeName(std::string const& _name)
 		{
 			if (nameParts[1] == "storage")
 				location = DataLocation::Storage;
+			else if (nameParts[1] == "transient")
+				location = DataLocation::Transient;
 			else if (nameParts[1] == "calldata")
 				location = DataLocation::CallData;
 			else if (nameParts[1] == "memory")
@@ -570,9 +572,9 @@ MagicType const* TypeProvider::meta(Type const* _type)
 	return createAndGet<MagicType>(_type);
 }
 
-MappingType const* TypeProvider::mapping(Type const* _keyType, ASTString _keyName, Type const* _valueType, ASTString _valueName)
+MappingType const* TypeProvider::mapping(Type const* _keyType, ASTString _keyName, Type const* _valueType, ASTString _valueName, DataLocation _location)
 {
-	return createAndGet<MappingType>(_keyType, _keyName, _valueType, _valueName);
+	return createAndGet<MappingType>(_keyType, _keyName, _valueType, _valueName, _location);
 }
 
 UserDefinedValueType const* TypeProvider::userDefinedValueType(UserDefinedValueTypeDefinition const& _definition)

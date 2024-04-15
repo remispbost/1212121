@@ -117,7 +117,8 @@ public:
 	static Type const* withLocationIfReference(DataLocation _location, Type const* _type, bool _isPointer = false)
 	{
 		if (auto refType = dynamic_cast<ReferenceType const*>(_type))
-			return withLocation(refType, _location, _isPointer);
+			if (refType->validForLocation(_location))
+				return withLocation(refType, _location, _isPointer);
 
 		return _type;
 	}
@@ -195,7 +196,7 @@ public:
 
 	static MagicType const* meta(Type const* _type);
 
-	static MappingType const* mapping(Type const* _keyType, ASTString _keyName, Type const* _valueType, ASTString _valueName);
+	static MappingType const* mapping(Type const* _keyType, ASTString _keyName, Type const* _valueType, ASTString _valueName, DataLocation _location);
 
 	static UserDefinedValueType const* userDefinedValueType(UserDefinedValueTypeDefinition const& _definition);
 
