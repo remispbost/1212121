@@ -87,7 +87,7 @@ void LoadResolver::tryResolve(
 	if (_arguments.empty() || !std::holds_alternative<Identifier>(_arguments.at(0)))
 		return;
 
-	YulString key = std::get<Identifier>(_arguments.at(0)).name;
+	YulName key = std::get<Identifier>(_arguments.at(0)).name;
 	if (_location == StoreLoadLocation::Storage)
 	{
 		if (auto value = storageValue(key))
@@ -125,7 +125,7 @@ void LoadResolver::tryEvaluateKeccak(
 			{},
 			LiteralKind::Number,
 			// a dummy 256-bit number to represent the Keccak256 hash.
-			YulString{std::numeric_limits<u256>::max().str()},
+			YulName{std::numeric_limits<u256>::max().str()},
 			{}
 		}
 	);
@@ -137,7 +137,7 @@ void LoadResolver::tryEvaluateKeccak(
 	if (costOfLiteral > costOfKeccak)
 		return;
 
-	std::optional<YulString> value = memoryValue(memoryKey->name);
+	std::optional<YulName> value = memoryValue(memoryKey->name);
 	if (value && inScope(*value))
 	{
 		std::optional<u256> memoryContent = valueOfIdentifier(*value);
@@ -149,7 +149,7 @@ void LoadResolver::tryEvaluateKeccak(
 			_e = Literal{
 				debugDataOf(_e),
 				LiteralKind::Number,
-				YulString{u256(keccak256(contentAsBytes)).str()},
+				YulName{u256(keccak256(contentAsBytes)).str()},
 				m_dialect.defaultType
 			};
 		}

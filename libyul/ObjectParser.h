@@ -63,8 +63,8 @@ private:
 	void parseData(Object& _containingObject);
 
 	/// Tries to parse a name that is non-empty and unique inside the containing object.
-	YulString parseUniqueName(Object const* _containingObject);
-	void addNamedSubObject(Object& _container, YulString _name, std::shared_ptr<ObjectNode> _subObject);
+	YulName parseUniqueName(Object const* _containingObject);
+	void addNamedSubObject(Object& _container, YulName _name, std::shared_ptr<ObjectNode> _subObject);
 
 	Dialect const& m_dialect;
 };

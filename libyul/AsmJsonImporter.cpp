@@ -71,8 +71,8 @@ Json AsmJsonImporter::member(Json const& _node, std::string const& _name)
 TypedName AsmJsonImporter::createTypedName(Json const& _node)
 {
 	auto typedName = createAsmNode<TypedName>(_node);
-	typedName.type = YulString{member(_node, "type").get<std::string>()};
-	typedName.name = YulString{member(_node, "name").get<std::string>()};
+	typedName.type = YulName{member(_node, "type").get<std::string>()};
+	typedName.name = YulName{member(_node, "name").get<std::string>()};
 	return typedName;
 }
 
@@ -166,11 +166,11 @@ Literal AsmJsonImporter::createLiteral(Json const& _node)
 
 	solAssert(member(_node, "hexValue").is_string() || member(_node, "value").is_string(), "");
 	if (_node.contains("hexValue"))
-		lit.value = YulString{util::asString(util::fromHex(member(_node, "hexValue").get<std::string>()))};
+		lit.value = YulName{util::asString(util::fromHex(member(_node, "hexValue").get<std::string>()))};
 	else
-		lit.value = YulString{member(_node, "value").get<std::string>()};
+		lit.value = YulName{member(_node, "value").get<std::string>()};
 
-	lit.type= YulString{member(_node, "type").get<std::string>()};
+	lit.type= YulName{member(_node, "type").get<std::string>()};
 
 	if (kind == "number")
 	{
@@ -215,7 +215,7 @@ Leave AsmJsonImporter::createLeave(Json const& _node)
 Identifier AsmJsonImporter::createIdentifier(Json const& _node)
 {
 	auto identifier = createAsmNode<Identifier>(_node);
-	identifier.name = YulString(member(_node, "name").get<std::string>());
+	identifier.name = YulName(member(_node, "name").get<std::string>());
 	return identifier;
 }
 
@@ -265,7 +265,7 @@ VariableDeclaration AsmJsonImporter::createVariableDeclaration(Json const& _node
 FunctionDefinition AsmJsonImporter::createFunctionDefinition(Json const& _node)
 {
 	auto funcDef = createAsmNode<FunctionDefinition>(_node);
-	funcDef.name = YulString{member(_node, "name").get<std::string>()};
+	funcDef.name = YulName{member(_node, "name").get<std::string>()};
 
 	if (_node.contains("parameters"))
 		for (auto const& var: member(_node, "parameters"))

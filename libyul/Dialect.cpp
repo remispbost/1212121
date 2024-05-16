@@ -25,7 +25,7 @@
 using namespace solidity::yul;
 using namespace solidity::langutil;
 
-Literal Dialect::zeroLiteralForType(solidity::yul::YulString _type) const
+Literal Dialect::zeroLiteralForType(solidity::yul::YulName _type) const
 {
 	if (_type == boolType && _type != defaultType)
 		return {DebugData::create(), LiteralKind::Boolean, "false"_yulstring, _type};
@@ -41,7 +41,7 @@ Literal Dialect::trueLiteral() const
 		return {DebugData::create(), LiteralKind::Number, "1"_yulstring, defaultType};
 }
 
-bool Dialect::validTypeForLiteral(LiteralKind _kind, YulString, YulString _type) const
+bool Dialect::validTypeForLiteral(LiteralKind _kind, YulName, YulName _type) const
 {
 	if (_kind == LiteralKind::Boolean)
 		return _type == boolType;

@@ -179,13 +179,13 @@ Representation const& RepresentationFinder::findRepresentation(u256 const& _valu
 Representation RepresentationFinder::represent(u256 const& _value) const
 {
 	Representation repr;
-	repr.expression = std::make_unique<Expression>(Literal{m_debugData, LiteralKind::Number, YulString{formatNumber(_value)}, {}});
+	repr.expression = std::make_unique<Expression>(Literal{m_debugData, LiteralKind::Number, YulName{formatNumber(_value)}, {}});
 	repr.cost = m_meter.costs(*repr.expression);
 	return repr;
 }
 
 Representation RepresentationFinder::represent(
-	YulString _instruction,
+	YulName _instruction,
 	Representation const& _argument
 ) const
 {
@@ -200,7 +200,7 @@ Representation RepresentationFinder::represent(
 }
 
 Representation RepresentationFinder::represent(
-	YulString _instruction,
+	YulName _instruction,
 	Representation const& _arg1,
 	Representation const& _arg2
 ) const

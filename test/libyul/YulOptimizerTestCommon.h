@@ -63,7 +63,7 @@ private:
 	std::string m_optimizerStep;
 
 	Dialect const* m_dialect = nullptr;
-	std::set<YulString> m_reservedIdentifiers;
+	std::set<YulName> m_reservedIdentifiers;
 	std::unique_ptr<NameDispenser> m_nameDispenser;
 	std::unique_ptr<OptimiserStepContext> m_context;
 

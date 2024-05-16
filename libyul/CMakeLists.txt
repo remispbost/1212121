@@ -36,7 +36,8 @@ add_library(yul
 	ScopeFiller.h
 	Utilities.cpp
 	Utilities.h
-	YulString.h
+	YulName.h
+	YulName.h
 	backends/evm/AbstractAssembly.h
 	backends/evm/AsmCodeGen.cpp
 	backends/evm/AsmCodeGen.h

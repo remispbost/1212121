@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(builtins_analysis)
 {
 	struct SimpleDialect: public Dialect
 	{
-		BuiltinFunction const* builtin(YulString _name) const override
+		BuiltinFunction const* builtin(YulName _name) const override
 		{
 			return _name == "builtin"_yulstring ? &f : nullptr;
 		}

@@ -76,7 +76,7 @@ struct CopyTranslate: public yul::ASTCopier
 			return ASTCopier::operator()(_identifier);
 	}
 
-	yul::YulString translateIdentifier(yul::YulString _name) override
+	yul::YulName translateIdentifier(yul::YulName _name) override
 	{
 		// Strictly, the dialect used by inline assembly (m_dialect) could be different
 		// from the Yul dialect we are compiling to. So we are assuming here that the builtin
@@ -85,7 +85,7 @@ struct CopyTranslate: public yul::ASTCopier
 		if (m_dialect.builtin(_name))
 			return _name;
 		else
-			return yul::YulString{"usr$" + _name.str()};
+			return yul::YulName{"usr$" + _name.str()};
 	}
 
 	yul::Identifier translate(yul::Identifier const& _identifier) override
@@ -202,9 +202,9 @@ private:
 			solAssert(false);
 
 		if (isDigit(value.front()))
-			return yul::Literal{_identifier.debugData, yul::LiteralKind::Number, yul::YulString{value}, {}};
+			return yul::Literal{_identifier.debugData, yul::LiteralKind::Number, yul::YulName{value}, {}};
 		else
-			return yul::Identifier{_identifier.debugData, yul::YulString{value}};
+			return yul::Identifier{_identifier.debugData, yul::YulName{value}};
 	}
 
 

@@ -185,7 +185,7 @@ void ObjectParser::parseData(Object& _containingObject)
 	);
 	advance();
 
-	YulString name = parseUniqueName(&_containingObject);
+	YulName name = parseUniqueName(&_containingObject);
 
 	if (currentToken() == Token::HexStringLiteral)
 		expectToken(Token::HexStringLiteral, false);
@@ -195,10 +195,10 @@ void ObjectParser::parseData(Object& _containingObject)
 	advance();
 }
 
-YulString ObjectParser::parseUniqueName(Object const* _containingObject)
+YulName ObjectParser::parseUniqueName(Object const* _containingObject)
 {
 	expectToken(Token::StringLiteral, false);
-	YulString name{currentLiteral()};
+	YulName name{currentLiteral()};
 	if (name.empty())
 		parserError(3287_error, "Object name cannot be empty.");
 	else if (_containingObject && _containingObject->name == name)
@@ -209,7 +209,7 @@ YulString ObjectParser::parseUniqueName(Object const* _containingObject)
 	return name;
 }
 
-void ObjectParser::addNamedSubObject(Object& _container, YulString _name, std::shared_ptr<ObjectNode> _subObject)
+void ObjectParser::addNamedSubObject(Object& _container, YulName _name, std::shared_ptr<ObjectNode> _subObject)
 {
 	_container.subIndexByName[_name] = _container.subObjects.size();
 	_container.subObjects.emplace_back(std::move(_subObject));

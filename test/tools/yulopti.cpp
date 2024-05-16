@@ -246,7 +246,7 @@ private:
 	shared_ptr<yul::Block> m_ast;
 	Dialect const& m_dialect{EVMDialect::strictAssemblyForEVMObjects(EVMVersion{})};
 	unique_ptr<AsmAnalysisInfo> m_analysisInfo;
-	set<YulString> const m_reservedIdentifiers = {};
+	set<YulName> const m_reservedIdentifiers = {};
 	NameDispenser m_nameDispenser{m_dialect, m_reservedIdentifiers};
 	OptimiserStepContext m_context{
 		m_dialect,

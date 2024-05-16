@@ -176,7 +176,7 @@ unique_ptr<Block> Program::disambiguateAST(
 	AsmAnalysisInfo const& _analysisInfo
 )
 {
-	set<YulString> const externallyUsedIdentifiers = {};
+	set<YulName> const externallyUsedIdentifiers = {};
 	Disambiguator disambiguator(_dialect, _analysisInfo, externallyUsedIdentifiers);
 
 	return make_unique<Block>(get<Block>(disambiguator(_ast)));
@@ -191,7 +191,7 @@ unique_ptr<Block> Program::applyOptimisationSteps(
 {
 	// An empty set of reserved identifiers. It could be a constructor parameter but I don't
 	// think it would be useful in this tool. Other tools (like yulopti) have it empty too.
-	set<YulString> const externallyUsedIdentifiers = {};
+	set<YulName> const externallyUsedIdentifiers = {};
 	OptimiserStepContext context{
 		_dialect,
 		_nameDispenser,

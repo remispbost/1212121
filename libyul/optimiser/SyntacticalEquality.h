@@ -23,6 +23,7 @@
 
 #include <libyul/ASTForward.h>
 #include <libyul/YulString.h>
+#include <libyul/YulName.h>
 
 #include <map>
 #include <type_traits>
@@ -81,8 +82,8 @@ private:
 	}
 
 	std::size_t m_idsUsed = 0;
-	std::map<YulString, std::size_t> m_identifiersLHS;
-	std::map<YulString, std::size_t> m_identifiersRHS;
+	std::map<YulName, std::size_t> m_identifiersLHS;
+	std::map<YulName, std::size_t> m_identifiersRHS;
 };
 
 /**

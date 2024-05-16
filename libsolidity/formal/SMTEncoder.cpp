@@ -306,7 +306,7 @@ void SMTEncoder::endVisit(Block const& _block)
 
 bool SMTEncoder::visit(InlineAssembly const& _inlineAsm)
 {
-	/// This is very similar to `yul::Assignments`, except I need to collect `Identifier`s and not just names as `YulString`s.
+	/// This is very similar to `yul::Assignments`, except I need to collect `Identifier`s and not just names as `YulName`s.
 	struct AssignedExternalsCollector: public yul::ASTWalker
 	{
 		AssignedExternalsCollector(InlineAssembly const& _inlineAsm): externalReferences(_inlineAsm.annotation().externalReferences)

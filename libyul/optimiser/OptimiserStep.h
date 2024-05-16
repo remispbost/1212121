@@ -19,6 +19,7 @@
 #pragma once
 
 #include <libyul/Exceptions.h>
+#include <libyul/YulName.h>
 
 #include <optional>
 #include <string>
@@ -29,14 +30,13 @@ namespace solidity::yul
 
 struct Dialect;
 struct Block;
-class YulString;
 class NameDispenser;
 
 struct OptimiserStepContext
 {
 	Dialect const& dialect;
 	NameDispenser& dispenser;
-	std::set<YulString> const& reservedIdentifiers;
+	std::set<YulName> const& reservedIdentifiers;
 	/// The value nullopt represents creation code
 	std::optional<size_t> expectedExecutionsPerDeployment;
 };

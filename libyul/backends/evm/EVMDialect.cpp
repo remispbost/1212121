@@ -46,7 +46,7 @@ using namespace solidity::util;
 namespace
 {
 
-std::pair<YulString, BuiltinFunctionForEVM> createEVMFunction(
+std::pair<YulName, BuiltinFunctionForEVM> createEVMFunction(
 	langutil::EVMVersion _evmVersion,
 	std::string const& _name,
 	evmasm::Instruction _instruction
@@ -54,7 +54,7 @@ std::pair<YulString, BuiltinFunctionForEVM> createEVMFunction(
 {
 	evmasm::InstructionInfo info = evmasm::instructionInfo(_instruction, _evmVersion);
 	BuiltinFunctionForEVM f;
-	f.name = YulString{_name};
+	f.name = YulName{_name};
 	f.parameters.resize(static_cast<size_t>(info.args));
 	f.returns.resize(static_cast<size_t>(info.ret));
 	f.sideEffects = EVMDialect::sideEffectsOfInstruction(_instruction);
@@ -83,11 +83,11 @@ std::pair<YulString, BuiltinFunctionForEVM> createEVMFunction(
 		_assembly.appendInstruction(_instruction);
 	};
 
-	YulString name = f.name;
+	YulName name = f.name;
 	return {name, std::move(f)};
 }
 
-std::pair<YulString, BuiltinFunctionForEVM> createFunction(
+std::pair<YulName, BuiltinFunctionForEVM> createFunction(
 	std::string _name,
 	size_t _params,
 	size_t _returns,
@@ -98,7 +98,7 @@ std::pair<YulString, BuiltinFunctionForEVM> createFunction(
 {
 	yulAssert(_literalArguments.size() == _params || _literalArguments.empty(), "");
 
-	YulString name{std::move(_name)};
+	YulName name{std::move(_name)};
 	BuiltinFunctionForEVM f;
 	f.name = name;
 	f.parameters.resize(_params);
@@ -111,7 +111,7 @@ std::pair<YulString, BuiltinFunctionForEVM> createFunction(
 	return {name, f};
 }
 
-std::set<YulString> createReservedIdentifiers(langutil::EVMVersion _evmVersion)
+std::set<YulName> createReservedIdentifiers(langutil::EVMVersion _evmVersion)
 {
 	// TODO remove this in 0.9.0. We allow creating functions or identifiers in Yul with the name
 	// basefee for VMs before london.
@@ -157,7 +157,7 @@ std::set<YulString> createReservedIdentifiers(langutil::EVMVersion _evmVersion)
 			(_instr == evmasm::Instruction::TSTORE || _instr == evmasm::Instruction::TLOAD);
 	};
 
-	std::set<YulString> reserved;
+	std::set<YulName> reserved;
 	for (auto const& instr: evmasm::c_instructions)
 	{
 		std::string name = toLower(instr.first);
@@ -171,7 +171,7 @@ std::set<YulString> createReservedIdentifiers(langutil::EVMVersion _evmVersion)
 		)
 			reserved.emplace(name);
 	}
-	reserved += std::vector<YulString>{
+	reserved += std::vector<YulName>{
 		"linkersymbol"_yulstring,
 		"datasize"_yulstring,
 		"dataoffset"_yulstring,
@@ -182,7 +182,7 @@ std::set<YulString> createReservedIdentifiers(langutil::EVMVersion _evmVersion)
 	return reserved;
 }
 
-std::map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _evmVersion, bool _objectAccess)
+std::map<YulName, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _evmVersion, bool _objectAccess)
 {
 
 	// Exclude prevrandao as builtin for VMs before paris and difficulty for VMs after paris.
@@ -191,7 +191,7 @@ std::map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _
 		return (_instrName == "prevrandao" && _evmVersion < langutil::EVMVersion::paris()) || (_instrName == "difficulty" && _evmVersion >= langutil::EVMVersion::paris());
 	};
 
-	std::map<YulString, BuiltinFunctionForEVM> builtins;
+	std::map<YulName, BuiltinFunctionForEVM> builtins;
 	for (auto const& instr: evmasm::c_instructions)
 	{
 		std::string name = toLower(instr.first);
@@ -248,7 +248,7 @@ std::map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _
 			yulAssert(_context.currentObject, "No object available.");
 			yulAssert(_call.arguments.size() == 1, "");
 			Expression const& arg = _call.arguments.front();
-			YulString dataName = std::get<Literal>(arg).value;
+			YulName dataName = std::get<Literal>(arg).value;
 			if (_context.currentObject->name == dataName)
 				_assembly.appendAssemblySize();
 			else
@@ -269,7 +269,7 @@ std::map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _
 			yulAssert(_context.currentObject, "No object available.");
 			yulAssert(_call.arguments.size() == 1, "");
 			Expression const& arg = _call.arguments.front();
-			YulString dataName = std::get<Literal>(arg).value;
+			YulName dataName = std::get<Literal>(arg).value;
 			if (_context.currentObject->name == dataName)
 				_assembly.appendConstant(0);
 			else
@@ -328,7 +328,7 @@ std::map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _
 				BuiltinContext&
 			) {
 				yulAssert(_call.arguments.size() == 3, "");
-				YulString identifier = std::get<Literal>(_call.arguments[1]).value;
+				YulName identifier = std::get<Literal>(_call.arguments[1]).value;
 				_assembly.appendImmutableAssignment(identifier.str());
 			}
 		));
@@ -368,7 +368,7 @@ EVMDialect::EVMDialect(langutil::EVMVersion _evmVersion, bool _objectAccess):
 {
 }
 
-BuiltinFunctionForEVM const* EVMDialect::builtin(YulString _name) const
+BuiltinFunctionForEVM const* EVMDialect::builtin(YulName _name) const
 {
 	if (m_objectAccess)
 	{
@@ -383,7 +383,7 @@ BuiltinFunctionForEVM const* EVMDialect::builtin(YulString _name) const
 		return nullptr;
 }
 
-bool EVMDialect::reservedIdentifier(YulString _name) const
+bool EVMDialect::reservedIdentifier(YulName _name) const
 {
 	if (m_objectAccess)
 		if (_name.str().substr(0, "verbatim"s.size()) == "verbatim")
@@ -534,7 +534,7 @@ EVMDialectTyped::EVMDialectTyped(langutil::EVMVersion _evmVersion, bool _objectA
 	m_functions["u256_to_bool"_yulstring].returns = {"bool"_yulstring};
 }
 
-BuiltinFunctionForEVM const* EVMDialectTyped::discardFunction(YulString _type) const
+BuiltinFunctionForEVM const* EVMDialectTyped::discardFunction(YulName _type) const
 {
 	if (_type == "bool"_yulstring)
 		return builtin("popbool"_yulstring);
@@ -545,7 +545,7 @@ BuiltinFunctionForEVM const* EVMDialectTyped::discardFunction(YulString _type) c
 	}
 }
 
-BuiltinFunctionForEVM const* EVMDialectTyped::equalityFunction(YulString _type) const
+BuiltinFunctionForEVM const* EVMDialectTyped::equalityFunction(YulName _type) const
 {
 	if (_type == "bool"_yulstring)
 		return nullptr;

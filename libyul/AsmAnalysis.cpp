@@ -98,7 +98,7 @@ AsmAnalysisInfo AsmAnalyzer::analyzeStrictAssertCorrect(Dialect const& _dialect,
 	return analysisInfo;
 }
 
-std::vector<YulString> AsmAnalyzer::operator()(Literal const& _literal)
+std::vector<YulName> AsmAnalyzer::operator()(Literal const& _literal)
 {
 	expectValidType(_literal.type, nativeLocationOf(_literal));
 	if (_literal.kind == LiteralKind::String && _literal.value.str().size() > 32)
@@ -122,11 +122,11 @@ std::vector<YulString> AsmAnalyzer::operator()(Literal const& _literal)
 	return {_literal.type};
 }
 
-std::vector<YulString> AsmAnalyzer::operator()(Identifier const& _identifier)
+std::vector<YulName> AsmAnalyzer::operator()(Identifier const& _identifier)
 {
 	yulAssert(!_identifier.name.empty(), "");
 	auto watcher = m_errorReporter.errorWatcher();
-	YulString type = m_dialect.defaultType;
+	YulName type = m_dialect.defaultType;
 
 	if (m_currentScope->lookup(_identifier.name, GenericVisitor{
 		[&](Scope::Variable const& _var)
@@ -180,7 +180,7 @@ std::vector<YulString> AsmAnalyzer::operator()(Identifier const& _identifier)
 void AsmAnalyzer::operator()(ExpressionStatement const& _statement)
 {
 	auto watcher = m_errorReporter.errorWatcher();
-	std::vector<YulString> types = std::visit(*this, _statement.expression);
+	std::vector<YulName> types = std::visit(*this, _statement.expression);
 	if (watcher.ok() && !types.empty())
 		m_errorReporter.typeError(
 			3083_error,
@@ -199,7 +199,7 @@ void AsmAnalyzer::operator()(Assignment const& _assignment)
 	size_t const numVariables = _assignment.variableNames.size();
 	yulAssert(numVariables >= 1, "");
 
-	std::set<YulString> variables;
+	std::set<YulName> variables;
 	for (auto const& _variableName: _assignment.variableNames)
 		if (!variables.insert(_variableName.name).second)
 			m_errorReporter.declarationError(
@@ -210,7 +210,7 @@ void AsmAnalyzer::operator()(Assignment const& _assignment)
 				" occurs multiple times on the left-hand side of the assignment."
 			);
 
-	std::vector<YulString> types = std::visit(*this, *_assignment.value);
+	std::vector<YulName> types = std::visit(*this, *_assignment.value);
 
 	if (types.size() != numVariables)
 		m_errorReporter.declarationError(
@@ -249,7 +249,7 @@ void AsmAnalyzer::operator()(VariableDeclaration const& _varDecl)
 
 	if (_varDecl.value)
 	{
-		std::vector<YulString> types = std::visit(*this, *_varDecl.value);
+		std::vector<YulName> types = std::visit(*this, *_varDecl.value);
 		if (types.size() != numVariables)
 			m_errorReporter.declarationError(
 				3812_error,
@@ -265,7 +265,7 @@ void AsmAnalyzer::operator()(VariableDeclaration const& _varDecl)
 
 		for (size_t i = 0; i < _varDecl.variables.size(); ++i)
 		{
-			YulString givenType = m_dialect.defaultType;
+			YulName givenType = m_dialect.defaultType;
 			if (i < types.size())
 				givenType = types[i];
 			TypedName const& variable = _varDecl.variables[i];
@@ -301,12 +301,12 @@ void AsmAnalyzer::operator()(FunctionDefinition const& _funDef)
 	(*this)(_funDef.body);
 }
 
-std::vector<YulString> AsmAnalyzer::operator()(FunctionCall const& _funCall)
+std::vector<YulName> AsmAnalyzer::operator()(FunctionCall const& _funCall)
 {
 	yulAssert(!_funCall.functionName.name.empty(), "");
 	auto watcher = m_errorReporter.errorWatcher();
-	std::vector<YulString> const* parameterTypes = nullptr;
-	std::vector<YulString> const* returnTypes = nullptr;
+	std::vector<YulName> const* parameterTypes = nullptr;
+	std::vector<YulName> const* returnTypes = nullptr;
 	std::vector<std::optional<LiteralKind>> const* literalArguments = nullptr;
 
 	if (BuiltinFunction const* f = m_dialect.builtin(_funCall.functionName.name))
@@ -390,7 +390,7 @@ std::vector<YulString> AsmAnalyzer::operator()(FunctionCall const& _funCall)
 			std::to_string(_funCall.arguments.size()) + "."
 		);
 
-	std::vector<YulString> argTypes;
+	std::vector<YulName> argTypes;
 	for (size_t i = _funCall.arguments.size(); i > 0; i--)
 	{
 		Expression const& arg = _funCall.arguments[i - 1];
@@ -453,7 +453,7 @@ std::vector<YulString> AsmAnalyzer::operator()(FunctionCall const& _funCall)
 		return *returnTypes;
 	}
 	else if (returnTypes)
-		return std::vector<YulString>(returnTypes->size(), m_dialect.defaultType);
+		return std::vector<YulName>(returnTypes->size(), m_dialect.defaultType);
 	else
 		return {};
 }
@@ -476,7 +476,7 @@ void AsmAnalyzer::operator()(Switch const& _switch)
 			"\"switch\" statement with only a default case."
 		);
 
-	YulString valueType = expectExpression(*_switch.expression);
+	YulName valueType = expectExpression(*_switch.expression);
 
 	std::set<u256> cases;
 	for (auto const& _case: _switch.cases)
@@ -541,9 +541,9 @@ void AsmAnalyzer::operator()(Block const& _block)
 	m_currentScope = previousScope;
 }
 
-YulString AsmAnalyzer::expectExpression(Expression const& _expr)
+YulName AsmAnalyzer::expectExpression(Expression const& _expr)
 {
-	std::vector<YulString> types = std::visit(*this, _expr);
+	std::vector<YulName> types = std::visit(*this, _expr);
 	if (types.size() != 1)
 		m_errorReporter.typeError(
 			3950_error,
@@ -555,7 +555,7 @@ YulString AsmAnalyzer::expectExpression(Expression const& _expr)
 	return types.empty() ? m_dialect.defaultType : types.front();
 }
 
-YulString AsmAnalyzer::expectUnlimitedStringLiteral(Literal const& _literal)
+YulName AsmAnalyzer::expectUnlimitedStringLiteral(Literal const& _literal)
 {
 	yulAssert(_literal.kind == LiteralKind::String, "");
 	yulAssert(m_dialect.validTypeForLiteral(LiteralKind::String, _literal.value, _literal.type), "");
@@ -565,7 +565,7 @@ YulString AsmAnalyzer::expectUnlimitedStringLiteral(Literal const& _literal)
 
 void AsmAnalyzer::expectBoolExpression(Expression const& _expr)
 {
-	YulString type = expectExpression(_expr);
+	YulName type = expectExpression(_expr);
 	if (type != m_dialect.boolType)
 		m_errorReporter.typeError(
 			1733_error,
@@ -578,11 +578,11 @@ void AsmAnalyzer::expectBoolExpression(Expression const& _expr)
 		);
 }
 
-void AsmAnalyzer::checkAssignment(Identifier const& _variable, YulString _valueType)
+void AsmAnalyzer::checkAssignment(Identifier const& _variable, YulName _valueType)
 {
 	yulAssert(!_variable.name.empty(), "");
 	auto watcher = m_errorReporter.errorWatcher();
-	YulString const* variableType = nullptr;
+	YulName const* variableType = nullptr;
 	bool found = false;
 	if (Scope::Identifier const* var = m_currentScope->lookup(_variable.name))
 	{
@@ -641,7 +641,7 @@ Scope& AsmAnalyzer::scope(Block const* _block)
 	return *scopePtr;
 }
 
-void AsmAnalyzer::expectValidIdentifier(YulString _identifier, SourceLocation const& _location)
+void AsmAnalyzer::expectValidIdentifier(YulName _identifier, SourceLocation const& _location)
 {
 	// NOTE: the leading dot case is handled by the parser not allowing it.
 	if (boost::ends_with(_identifier.str(), "."))
@@ -666,7 +666,7 @@ void AsmAnalyzer::expectValidIdentifier(YulString _identifier, SourceLocation co
 		);
 }
 
-void AsmAnalyzer::expectValidType(YulString _type, SourceLocation const& _location)
+void AsmAnalyzer::expectValidType(YulName _type, SourceLocation const& _location)
 {
 	if (!m_dialect.types.count(_type))
 		m_errorReporter.typeError(
@@ -676,7 +676,7 @@ void AsmAnalyzer::expectValidType(YulString _type, SourceLocation const& _locati
 		);
 }
 
-void AsmAnalyzer::expectType(YulString _expectedType, YulString _givenType, SourceLocation const& _location)
+void AsmAnalyzer::expectType(YulName _expectedType, YulName _givenType, SourceLocation const& _location)
 {
 	if (_expectedType != _givenType)
 		m_errorReporter.typeError(
@@ -689,7 +689,7 @@ void AsmAnalyzer::expectType(YulString _expectedType, YulString _givenType, Sour
 bool AsmAnalyzer::validateInstructions(std::string const& _instructionIdentifier, langutil::SourceLocation const& _location)
 {
 	// NOTE: This function uses the default EVM version instead of the currently selected one.
-	auto const builtin = EVMDialect::strictAssemblyForEVM(EVMVersion{}).builtin(YulString(_instructionIdentifier));
+	auto const builtin = EVMDialect::strictAssemblyForEVM(EVMVersion{}).builtin(YulName(_instructionIdentifier));
 	if (builtin && builtin->instruction.has_value())
 		return validateInstructions(builtin->instruction.value(), _location);
 	else

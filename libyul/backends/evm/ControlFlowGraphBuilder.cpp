@@ -336,7 +336,7 @@ void ControlFlowGraphBuilder::operator()(Switch const& _switch)
 	langutil::DebugData::ConstPtr preSwitchDebugData = debugDataOf(_switch);
 
 	auto ghostVariableId = m_graph.ghostVariables.size();
-	YulString ghostVariableName("GHOST[" + std::to_string(ghostVariableId) + "]");
+	YulName ghostVariableName("GHOST[" + std::to_string(ghostVariableId) + "]");
 	auto& ghostVar = m_graph.ghostVariables.emplace_back(Scope::Variable{""_yulstring, ghostVariableName});
 
 	// Artificially generate:
@@ -578,7 +578,7 @@ Stack ControlFlowGraphBuilder::visitAssignmentRightHandSide(Expression const& _e
 	}, _expression);
 }
 
-Scope::Function const& ControlFlowGraphBuilder::lookupFunction(YulString _name) const
+Scope::Function const& ControlFlowGraphBuilder::lookupFunction(YulName _name) const
 {
 	Scope::Function const* function = nullptr;
 	yulAssert(m_scope->lookup(_name, util::GenericVisitor{
@@ -589,7 +589,7 @@ Scope::Function const& ControlFlowGraphBuilder::lookupFunction(YulString _name) 
 	return *function;
 }
 
-Scope::Variable const& ControlFlowGraphBuilder::lookupVariable(YulString _name) const
+Scope::Variable const& ControlFlowGraphBuilder::lookupVariable(YulName _name) const
 {
 	yulAssert(m_scope, "");
 	Scope::Variable const* var = nullptr;

@@ -23,6 +23,7 @@
 
 #include <libyul/ASTForward.h>
 #include <libyul/YulString.h>
+#include <libyul/YulName.h>
 
 #include <liblangutil/CharStreamProvider.h>
 #include <liblangutil/DebugInfoSelection.h>
@@ -52,7 +53,7 @@ struct ObjectNode
 
 	/// Name of the object.
 	/// Can be empty since .yul files can also just contain code, without explicitly placing it in an object.
-	YulString name;
+	YulName name;
 	virtual std::string toString(
 		Dialect const* _dialect,
 		langutil::DebugInfoSelection const& _debugInfoSelection,
@@ -66,7 +67,7 @@ struct ObjectNode
  */
 struct Data: public ObjectNode
 {
-	Data(YulString _name, bytes _data): data(std::move(_data)) { name = _name; }
+	Data(YulName _name, bytes _data): data(std::move(_data)) { name = _name; }
 
 	bytes data;
 
@@ -102,7 +103,7 @@ public:
 	/// @returns the set of names of data objects accessible from within the code of
 	/// this object, including the name of object itself
 	/// Handles all names containing dots as reserved identifiers, not accessible as data.
-	std::set<YulString> qualifiedDataNames() const;
+	std::set<YulName> qualifiedDataNames() const;
 
 	/// @returns vector of subIDs if possible to reach subobject with @a _qualifiedName, throws otherwise
 	/// For "B.C" should return vector of two values if success (subId of B and subId of C in B).
@@ -114,14 +115,14 @@ public:
 	/// pathToSubObject("E2.F3.H4") == {1, 0, 2}
 	/// pathToSubObject("A1.E2") == {1}
 	/// The path must not lead to a @a Data object (will throw in that case).
-	std::vector<size_t> pathToSubObject(YulString _qualifiedName) const;
+	std::vector<size_t> pathToSubObject(YulName _qualifiedName) const;
 
 	/// sub id for object if it is subobject of another object, max value if it is not subobject
 	size_t subId = std::numeric_limits<size_t>::max();
 
 	std::shared_ptr<Block> code;
 	std::vector<std::shared_ptr<ObjectNode>> subObjects;
-	std::map<YulString, size_t> subIndexByName;
+	std::map<YulName, size_t> subIndexByName;
 	std::shared_ptr<yul::AsmAnalysisInfo> analysisInfo;
 
 	std::shared_ptr<ObjectDebugData const> debugData;

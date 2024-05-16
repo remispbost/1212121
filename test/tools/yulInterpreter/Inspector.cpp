@@ -31,7 +31,7 @@ using namespace solidity::yul::test;
 namespace
 {
 
-void printVariable(YulString const& _name, u256 const& _value)
+void printVariable(YulName const& _name, u256 const& _value)
 {
 	std::cout << "\t" << _name.str() << " = " << _value.str();
 
@@ -56,7 +56,7 @@ void InspectedInterpreter::run(
 	InspectedInterpreter{_inspector, _state, _dialect, scope, _disableExternalCalls, _disableMemoryTrace}(_ast);
 }
 
-Inspector::NodeAction Inspector::queryUser(langutil::DebugData const& _data, std::map<YulString, u256> const& _variables)
+Inspector::NodeAction Inspector::queryUser(langutil::DebugData const& _data, std::map<YulName, u256> const& _variables)
 {
 	if (m_stepMode == NodeAction::RunNode)
 	{

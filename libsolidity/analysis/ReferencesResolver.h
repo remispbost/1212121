@@ -27,6 +27,7 @@
 #include <libsolidity/ast/ASTAnnotations.h>
 #include <liblangutil/EVMVersion.h>
 #include <libyul/optimiser/ASTWalker.h>
+#include <libyul/YulName.h>
 
 #include <list>
 #include <map>
@@ -94,7 +95,7 @@ private:
 	void resolveInheritDoc(StructuredDocumentation const& _documentation, StructurallyDocumentedAnnotation& _annotation);
 
 	/// Checks if the name contains a '.'.
-	void validateYulIdentifierName(yul::YulString _name, langutil::SourceLocation const& _location);
+	void validateYulIdentifierName(yul::YulName _name, langutil::SourceLocation const& _location);
 
 	langutil::ErrorReporter& m_errorReporter;
 	NameAndTypeResolver& m_resolver;

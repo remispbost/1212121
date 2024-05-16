@@ -49,7 +49,7 @@ protected:
 		BOOST_REQUIRE(m_object && errorList.empty() && m_object->code);
 
 		NameDispenser dispenser(m_dialect, *m_object->code);
-		std::set<YulString> reserved;
+		std::set<YulName> reserved;
 		OptimiserStepContext context{m_dialect, dispenser, reserved, 0};
 		CommonSubexpressionEliminator::run(context, *m_object->code);
 
@@ -57,13 +57,13 @@ protected:
 		for (auto const& [name, expression]: m_ssaValues.values())
 			m_values[name].value = expression;
 
-		return KnowledgeBase([this](YulString _var) { return util::valueOrNullptr(m_values, _var); });
+		return KnowledgeBase([this](YulName _var) { return util::valueOrNullptr(m_values, _var); });
 	}
 
 	EVMDialect m_dialect{EVMVersion{}, true};
 	std::shared_ptr<Object> m_object;
 	SSAValueTracker m_ssaValues;
-	std::map<YulString, AssignedValue> m_values;
+	std::map<YulName, AssignedValue> m_values;
 };
 
 BOOST_FIXTURE_TEST_SUITE(KnowledgeBase, KnowledgeBaseTest)

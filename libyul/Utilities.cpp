@@ -90,7 +90,7 @@ u256 solidity::yul::valueOfNumberLiteral(Literal const& _literal)
 {
 	yulAssert(_literal.kind == LiteralKind::Number, "Expected number literal!");
 
-	static std::map<YulString, u256> numberCache;
+	static std::map<YulName, u256> numberCache;
 	static YulStringRepository::ResetCallback callback{[&] { numberCache.clear(); }};
 
 	auto&& [it, isNew] = numberCache.try_emplace(_literal.value, 0);
