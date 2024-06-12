@@ -1,7 +1,7 @@
 ### 0.8.27 (unreleased)
 
 Language Features:
-
+ * Support the use of the `delete` operator for user-defined value types.
 
 Compiler Features:
  * EVM: Support for the EVM version "Prague".
