@@ -18,6 +18,7 @@ Bugfixes:
  * SMTChecker: Fix internal compiler error when reporting proved targets for BMC engine.
  * TypeChecker: Fix segfault when assigning nested tuple to tuple.
  * Yul Optimizer: Name simplification could lead to forbidden identifiers with a leading and/or trailing dot, e.g., ``x._`` would get simplified into ``x.``.
+ * NatSpec: Correct devdoc method returns in documentation.
 
 
 ### 0.8.26 (2024-05-21)
