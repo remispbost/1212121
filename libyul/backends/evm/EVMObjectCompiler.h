@@ -29,6 +29,7 @@ namespace solidity::yul
 struct Object;
 class AbstractAssembly;
 struct EVMDialect;
+class YulNameRepository;
 
 class EVMObjectCompiler
 {

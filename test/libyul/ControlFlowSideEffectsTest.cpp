@@ -23,6 +23,7 @@
 
 #include <libyul/Object.h>
 #include <libyul/AST.h>
+#include <libyul/YulStack.h>
 #include <libyul/ControlFlowSideEffects.h>
 #include <libyul/ControlFlowSideEffectsCollector.h>
 #include <libyul/backends/evm/EVMDialect.h>
@@ -62,13 +63,13 @@ TestCase::TestResult ControlFlowSideEffectsTest::run(std::ostream& _stream, std:
 		BOOST_THROW_EXCEPTION(std::runtime_error("Parsing input failed."));
 
 	ControlFlowSideEffectsCollector sideEffects(
-		EVMDialect::strictAssemblyForEVMObjects(langutil::EVMVersion()),
-		*obj.code
+		obj.code->nameRepository(),
+		obj.code->block()
 	);
 	m_obtainedResult.clear();
-	forEach<FunctionDefinition const>(*obj.code, [&](FunctionDefinition const& _fun) {
+	forEach<FunctionDefinition const>(obj.code->block(), [&](FunctionDefinition const& _fun) {
 		std::string effectStr = toString(sideEffects.functionSideEffects().at(&_fun));
-		m_obtainedResult += _fun.name.str() + (effectStr.empty() ? ":" : ": " + effectStr) + "\n";
+		m_obtainedResult += std::string(obj.code->nameRepository().requiredLabelOf(_fun.name)) + (effectStr.empty() ? ":" : ": " + effectStr) + "\n";
 	});
 
 	return checkResult(_stream, _linePrefix, _formatted);

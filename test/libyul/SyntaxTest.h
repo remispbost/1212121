@@ -39,7 +39,7 @@ protected:
 	void parseAndAnalyze() override;
 
 private:
-	Dialect const* m_dialect = nullptr;
+	Dialect const* m_dialect;
 };
 
 }

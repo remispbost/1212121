@@ -50,6 +50,7 @@ class Scanner;
 namespace solidity::yul
 {
 class AbstractAssembly;
+struct EVMDialect;
 
 
 struct MachineAssemblyObject
@@ -145,7 +146,7 @@ private:
 	bool analyzeParsed();
 	bool analyzeParsed(yul::Object& _object);
 
-	void compileEVM(yul::AbstractAssembly& _assembly, bool _optimize) const;
+	void compileEVM(yul::AbstractAssembly& _assembly, bool _optimize);
 
 	void optimize(yul::Object& _object, bool _isCreation);
 

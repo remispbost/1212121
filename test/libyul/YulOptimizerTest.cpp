@@ -25,6 +25,7 @@
 
 #include <libyul/Object.h>
 #include <libyul/AsmPrinter.h>
+#include <libyul/AST.h>
 
 #include <liblangutil/CharStreamProvider.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -56,7 +57,6 @@ YulOptimizerTest::YulOptimizerTest(std::string const& _filename):
 
 	auto dialectName = m_reader.stringSetting("dialect", "evm");
 	m_dialect = &dialect(dialectName, solidity::test::CommonOptions::get().evmVersion());
-
 	m_expectation = m_reader.simpleExpectations();
 }
 
@@ -69,7 +69,7 @@ TestCase::TestResult YulOptimizerTest::run(std::ostream& _stream, std::string co
 	soltestAssert(m_dialect, "Dialect not set.");
 
 	m_object->analysisInfo = m_analysisInfo;
-	YulOptimizerTestCommon tester(m_object, *m_dialect);
+	YulOptimizerTestCommon tester(m_object);
 	tester.setStep(m_optimizerStep);
 
 	if (!tester.runStep())
@@ -77,8 +77,9 @@ TestCase::TestResult YulOptimizerTest::run(std::ostream& _stream, std::string co
 		AnsiColorized(_stream, _formatted, {formatting::BOLD, formatting::RED}) << _linePrefix << "Invalid optimizer step: " << m_optimizerStep << std::endl;
 		return TestResult::FatalError;
 	}
+	auto result = tester.resultObject();
 
-	auto const printed = (m_object->subObjects.empty() ? AsmPrinter{ *m_dialect }(*m_object->code) : m_object->toString(m_dialect));
+	auto const printed = (result->subObjects.empty() ? AsmPrinter{ result->code->nameRepository(), AsmPrinter::Mode::OmitDefaultType }(result->code->block()) : result->toString());
 
 	// Re-parse new code for compilability
 	if (!std::get<0>(parse(_stream, _linePrefix, _formatted, printed)))

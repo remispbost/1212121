@@ -87,18 +87,18 @@ TestCase::TestResult FunctionSideEffects::run(std::ostream& _stream, std::string
 	if (!obj.code)
 		BOOST_THROW_EXCEPTION(std::runtime_error("Parsing input failed."));
 
-	std::map<YulString, SideEffects> functionSideEffects = SideEffectsPropagator::sideEffects(
-		EVMDialect::strictAssemblyForEVMObjects(langutil::EVMVersion()),
-		CallGraphGenerator::callGraph(*obj.code)
+	std::map<YulName, SideEffects> functionSideEffects = SideEffectsPropagator::sideEffects(
+		obj.code->nameRepository(),
+		CallGraphGenerator::callGraph(obj.code->block())
 	);
 
-	std::map<std::string, std::string> functionSideEffectsStr;
+	std::map<std::string_view, std::string> functionSideEffectsStr;
 	for (auto const& fun: functionSideEffects)
-		functionSideEffectsStr[fun.first.str()] = toString(fun.second);
+		functionSideEffectsStr[obj.code->nameRepository().requiredLabelOf(fun.first)] = toString(fun.second);
 
 	m_obtainedResult.clear();
 	for (auto const& fun: functionSideEffectsStr)
-		m_obtainedResult += fun.first + ":" + (fun.second.empty() ? "" : " ") + fun.second + "\n";
+		m_obtainedResult += std::string(fun.first) + ":" + (fun.second.empty() ? "" : " ") + fun.second + "\n";
 
 	return checkResult(_stream, _linePrefix, _formatted);
 }

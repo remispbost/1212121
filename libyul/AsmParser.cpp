@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <regex>
+#include <utility>
 
 using namespace std::string_literals;
 using namespace solidity;
@@ -104,16 +105,19 @@ void Parser::updateLocationEndFrom(
 	}
 }
 
-std::unique_ptr<Block> Parser::parse(CharStream& _charStream)
+std::unique_ptr<AST> Parser::parse(CharStream& _charStream, std::optional<YulNameRepository> _nameRepository)
 {
 	m_scanner = std::make_shared<Scanner>(_charStream);
-	std::unique_ptr<Block> block = parseInline(m_scanner);
+	std::unique_ptr<AST> ast = parseInline(m_scanner, std::move(_nameRepository));
 	expectToken(Token::EOS);
-	return block;
+	return ast;
 }
 
-std::unique_ptr<Block> Parser::parseInline(std::shared_ptr<Scanner> const& _scanner)
+std::unique_ptr<AST> Parser::parseInline(std::shared_ptr<Scanner> const& _scanner, std::optional<YulNameRepository> _nameRepository)
 {
+	if (!_nameRepository.has_value())
+		_nameRepository = YulNameRepository(m_dialect);
+	// todo assert that the input name repository dialect and m_dialect are compatible
 	m_recursionDepth = 0;
 
 	auto previousScannerKind = _scanner->scannerKind();
@@ -125,7 +129,8 @@ std::unique_ptr<Block> Parser::parseInline(std::shared_ptr<Scanner> const& _scan
 		m_scanner = _scanner;
 		if (m_useSourceLocationFrom == UseSourceLocationFrom::Comments)
 			fetchDebugDataFromComment();
-		return std::make_unique<Block>(parseBlock());
+		auto block = parseBlock(*_nameRepository);
+		return std::make_unique<AST>(std::move(*_nameRepository), std::move(block));
 	}
 	catch (FatalError const& error)
 	{
@@ -319,35 +324,35 @@ std::optional<std::pair<std::string_view, std::optional<int>>> Parser::parseASTI
 		return std::nullopt;
 }
 
-Block Parser::parseBlock()
+Block Parser::parseBlock(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 	Block block = createWithDebugData<Block>();
 	expectToken(Token::LBrace);
 	while (currentToken() != Token::RBrace)
-		block.statements.emplace_back(parseStatement());
+		block.statements.emplace_back(parseStatement(_nameRepository));
 	updateLocationEndFrom(block.debugData, currentLocation());
 	advance();
 	return block;
 }
 
-Statement Parser::parseStatement()
+Statement Parser::parseStatement(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 	switch (currentToken())
 	{
 	case Token::Let:
-		return parseVariableDeclaration();
+		return parseVariableDeclaration(_nameRepository);
 	case Token::Function:
-		return parseFunctionDefinition();
+		return parseFunctionDefinition(_nameRepository);
 	case Token::LBrace:
-		return parseBlock();
+		return parseBlock(_nameRepository);
 	case Token::If:
 	{
 		If _if = createWithDebugData<If>();
 		advance();
-		_if.condition = std::make_unique<Expression>(parseExpression());
-		_if.body = parseBlock();
+		_if.condition = std::make_unique<Expression>(parseExpression(_nameRepository));
+		_if.body = parseBlock(_nameRepository);
 		updateLocationEndFrom(_if.debugData, nativeLocationOf(_if.body));
 		return Statement{std::move(_if)};
 	}
@@ -355,11 +360,11 @@ Statement Parser::parseStatement()
 	{
 		Switch _switch = createWithDebugData<Switch>();
 		advance();
-		_switch.expression = std::make_unique<Expression>(parseExpression());
+		_switch.expression = std::make_unique<Expression>(parseExpression(_nameRepository));
 		while (currentToken() == Token::Case)
-			_switch.cases.emplace_back(parseCase());
+			_switch.cases.emplace_back(parseCase(_nameRepository));
 		if (currentToken() == Token::Default)
-			_switch.cases.emplace_back(parseCase());
+			_switch.cases.emplace_back(parseCase(_nameRepository));
 		if (currentToken() == Token::Default)
 			fatalParserError(6931_error, "Only one default case allowed.");
 		else if (currentToken() == Token::Case)
@@ -370,7 +375,7 @@ Statement Parser::parseStatement()
 		return Statement{std::move(_switch)};
 	}
 	case Token::For:
-		return parseForLoop();
+		return parseForLoop(_nameRepository);
 	case Token::Break:
 	{
 		Statement stmt{createWithDebugData<Break>()};
@@ -400,13 +405,13 @@ Statement Parser::parseStatement()
 	// Options left:
 	// Expression/FunctionCall
 	// Assignment
-	std::variant<Literal, Identifier> elementary(parseLiteralOrIdentifier());
+	std::variant<Literal, Identifier> elementary(parseLiteralOrIdentifier(_nameRepository));
 
 	switch (currentToken())
 	{
 	case Token::LParen:
 	{
-		Expression expr = parseCall(std::move(elementary));
+		Expression expr = parseCall(std::move(elementary), _nameRepository);
 		return ExpressionStatement{debugDataOf(expr), std::move(expr)};
 	}
 	case Token::Comma:
@@ -432,8 +437,14 @@ Statement Parser::parseStatement()
 
 			auto const& identifier = std::get<Identifier>(elementary);
 
-			if (m_dialect.builtin(identifier.name))
-				fatalParserError(6272_error, "Cannot assign to builtin function \"" + identifier.name.str() + "\".");
+			if (_nameRepository.isBuiltinName(identifier.name))
+				fatalParserError(
+					6272_error,
+					fmt::format(
+						"Cannot assign to builtin function \"{}\".",
+						_nameRepository.requiredLabelOf(identifier.name)
+					)
+				);
 
 			assignment.variableNames.emplace_back(identifier);
 
@@ -442,12 +453,12 @@ Statement Parser::parseStatement()
 
 			expectToken(Token::Comma);
 
-			elementary = parseLiteralOrIdentifier();
+			elementary = parseLiteralOrIdentifier(_nameRepository);
 		}
 
 		expectToken(Token::AssemblyAssign);
 
-		assignment.value = std::make_unique<Expression>(parseExpression());
+		assignment.value = std::make_unique<Expression>(parseExpression(_nameRepository));
 		updateLocationEndFrom(assignment.debugData, nativeLocationOf(*assignment.value));
 
 		return Statement{std::move(assignment)};
@@ -461,7 +472,7 @@ Statement Parser::parseStatement()
 	return {};
 }
 
-Case Parser::parseCase()
+Case Parser::parseCase(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 	Case _case = createWithDebugData<Case>();
@@ -470,19 +481,19 @@ Case Parser::parseCase()
 	else if (currentToken() == Token::Case)
 	{
 		advance();
-		std::variant<Literal, Identifier> literal = parseLiteralOrIdentifier();
+		std::variant<Literal, Identifier> literal = parseLiteralOrIdentifier(_nameRepository);
 		if (!std::holds_alternative<Literal>(literal))
 			fatalParserError(4805_error, "Literal expected.");
 		_case.value = std::make_unique<Literal>(std::get<Literal>(std::move(literal)));
 	}
 	else
 		yulAssert(false, "Case or default case expected.");
-	_case.body = parseBlock();
+	_case.body = parseBlock(_nameRepository);
 	updateLocationEndFrom(_case.debugData, nativeLocationOf(_case.body));
 	return _case;
 }
 
-ForLoop Parser::parseForLoop()
+ForLoop Parser::parseForLoop(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 
@@ -491,13 +502,13 @@ ForLoop Parser::parseForLoop()
 	ForLoop forLoop = createWithDebugData<ForLoop>();
 	expectToken(Token::For);
 	m_currentForLoopComponent = ForLoopComponent::ForLoopPre;
-	forLoop.pre = parseBlock();
+	forLoop.pre = parseBlock(_nameRepository);
 	m_currentForLoopComponent = ForLoopComponent::None;
-	forLoop.condition = std::make_unique<Expression>(parseExpression());
+	forLoop.condition = std::make_unique<Expression>(parseExpression(_nameRepository));
 	m_currentForLoopComponent = ForLoopComponent::ForLoopPost;
-	forLoop.post = parseBlock();
+	forLoop.post = parseBlock(_nameRepository);
 	m_currentForLoopComponent = ForLoopComponent::ForLoopBody;
-	forLoop.body = parseBlock();
+	forLoop.body = parseBlock(_nameRepository);
 	updateLocationEndFrom(forLoop.debugData, nativeLocationOf(forLoop.body));
 
 	m_currentForLoopComponent = outerForLoopComponent;
@@ -505,21 +516,21 @@ ForLoop Parser::parseForLoop()
 	return forLoop;
 }
 
-Expression Parser::parseExpression(bool _unlimitedLiteralArgument)
+Expression Parser::parseExpression(YulNameRepository& _nameRepository, bool _unlimitedLiteralArgument)
 {
 	RecursionGuard recursionGuard(*this);
 
-	std::variant<Literal, Identifier> operation = parseLiteralOrIdentifier(_unlimitedLiteralArgument);
+	std::variant<Literal, Identifier> operation = parseLiteralOrIdentifier(_nameRepository, _unlimitedLiteralArgument);
 	return visit(GenericVisitor{
 		[&](Identifier& _identifier) -> Expression
 		{
 			if (currentToken() == Token::LParen)
-				return parseCall(std::move(operation));
-			if (m_dialect.builtin(_identifier.name))
+				return parseCall(std::move(operation), _nameRepository);
+			if (_nameRepository.isBuiltinName(_identifier.name))
 				fatalParserError(
 					7104_error,
 					nativeLocationOf(_identifier),
-					"Builtin function \"" + _identifier.name.str() + "\" must be called."
+					fmt::format("Builtin function \"{}\" must be called.", _nameRepository.requiredLabelOf(_identifier.name))
 				);
 			return std::move(_identifier);
 		},
@@ -530,14 +541,14 @@ Expression Parser::parseExpression(bool _unlimitedLiteralArgument)
 	}, operation);
 }
 
-std::variant<Literal, Identifier> Parser::parseLiteralOrIdentifier(bool _unlimitedLiteralArgument)
+std::variant<Literal, Identifier> Parser::parseLiteralOrIdentifier(YulNameRepository& _nameRepository, bool _unlimitedLiteralArgument)
 {
 	RecursionGuard recursionGuard(*this);
 	switch (currentToken())
 	{
 	case Token::Identifier:
 	{
-		Identifier identifier{createDebugData(), YulString{currentLiteral()}};
+		Identifier identifier{createDebugData(), _nameRepository.defineName(currentLiteral())};
 		advance();
 		return identifier;
 	}
@@ -571,14 +582,14 @@ std::variant<Literal, Identifier> Parser::parseLiteralOrIdentifier(bool _unlimit
 			createDebugData(),
 			kind,
 			valueOfLiteral(currentLiteral(), kind, _unlimitedLiteralArgument && kind == LiteralKind::String),
-			kind == LiteralKind::Boolean ? m_dialect.boolType : m_dialect.defaultType
+			kind == LiteralKind::Boolean ? _nameRepository.predefined().boolType : _nameRepository.predefined().defaultType
 		};
 		advance();
 		if (currentToken() == Token::Colon)
 		{
 			expectToken(Token::Colon);
 			updateLocationEndFrom(literal.debugData, currentLocation());
-			literal.type = expectAsmIdentifier();
+			literal.type = expectAsmIdentifier(_nameRepository);
 		}
 
 		return literal;
@@ -592,14 +603,14 @@ std::variant<Literal, Identifier> Parser::parseLiteralOrIdentifier(bool _unlimit
 	return {};
 }
 
-VariableDeclaration Parser::parseVariableDeclaration()
+VariableDeclaration Parser::parseVariableDeclaration(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 	VariableDeclaration varDecl = createWithDebugData<VariableDeclaration>();
 	expectToken(Token::Let);
 	while (true)
 	{
-		varDecl.variables.emplace_back(parseTypedName());
+		varDecl.variables.emplace_back(parseTypedName(_nameRepository));
 		if (currentToken() == Token::Comma)
 			expectToken(Token::Comma);
 		else
@@ -608,7 +619,7 @@ VariableDeclaration Parser::parseVariableDeclaration()
 	if (currentToken() == Token::AssemblyAssign)
 	{
 		expectToken(Token::AssemblyAssign);
-		varDecl.value = std::make_unique<Expression>(parseExpression());
+		varDecl.value = std::make_unique<Expression>(parseExpression(_nameRepository));
 		updateLocationEndFrom(varDecl.debugData, nativeLocationOf(*varDecl.value));
 	}
 	else
@@ -617,7 +628,7 @@ VariableDeclaration Parser::parseVariableDeclaration()
 	return varDecl;
 }
 
-FunctionDefinition Parser::parseFunctionDefinition()
+FunctionDefinition Parser::parseFunctionDefinition(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 
@@ -633,11 +644,11 @@ FunctionDefinition Parser::parseFunctionDefinition()
 
 	FunctionDefinition funDef = createWithDebugData<FunctionDefinition>();
 	expectToken(Token::Function);
-	funDef.name = expectAsmIdentifier();
+	funDef.name = expectAsmIdentifier(_nameRepository);
 	expectToken(Token::LParen);
 	while (currentToken() != Token::RParen)
 	{
-		funDef.parameters.emplace_back(parseTypedName());
+		funDef.parameters.emplace_back(parseTypedName(_nameRepository));
 		if (currentToken() == Token::RParen)
 			break;
 		expectToken(Token::Comma);
@@ -648,7 +659,7 @@ FunctionDefinition Parser::parseFunctionDefinition()
 		expectToken(Token::RightArrow);
 		while (true)
 		{
-			funDef.returnVariables.emplace_back(parseTypedName());
+			funDef.returnVariables.emplace_back(parseTypedName(_nameRepository));
 			if (currentToken() == Token::LBrace)
 				break;
 			expectToken(Token::Comma);
@@ -656,7 +667,7 @@ FunctionDefinition Parser::parseFunctionDefinition()
 	}
 	bool preInsideFunction = m_insideFunction;
 	m_insideFunction = true;
-	funDef.body = parseBlock();
+	funDef.body = parseBlock(_nameRepository);
 	m_insideFunction = preInsideFunction;
 	updateLocationEndFrom(funDef.debugData, nativeLocationOf(funDef.body));
 
@@ -664,7 +675,7 @@ FunctionDefinition Parser::parseFunctionDefinition()
 	return funDef;
 }
 
-FunctionCall Parser::parseCall(std::variant<Literal, Identifier>&& _initialOp)
+FunctionCall Parser::parseCall(std::variant<Literal, Identifier>&& _initialOp, YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 
@@ -674,20 +685,20 @@ FunctionCall Parser::parseCall(std::variant<Literal, Identifier>&& _initialOp)
 	FunctionCall ret;
 	ret.functionName = std::move(std::get<Identifier>(_initialOp));
 	ret.debugData = ret.functionName.debugData;
-	auto const isUnlimitedLiteralArgument = [f=m_dialect.builtin(ret.functionName.name)](size_t const index) {
-		if (f && index < f->literalArguments.size())
-			return f->literalArgument(index).has_value();
+	auto const isUnlimitedLiteralArgument = [f=_nameRepository.builtin(ret.functionName.name)](size_t const index) {
+		if (f && index < f->data->literalArguments.size())
+			return f->data->literalArgument(index).has_value();
 		return false;
 	};
 	size_t argumentIndex {0};
 	expectToken(Token::LParen);
 	if (currentToken() != Token::RParen)
 	{
-		ret.arguments.emplace_back(parseExpression(isUnlimitedLiteralArgument(argumentIndex++)));
+		ret.arguments.emplace_back(parseExpression(_nameRepository, isUnlimitedLiteralArgument(argumentIndex++)));
 		while (currentToken() != Token::RParen)
 		{
 			expectToken(Token::Comma);
-			ret.arguments.emplace_back(parseExpression(isUnlimitedLiteralArgument(argumentIndex++)));
+			ret.arguments.emplace_back(parseExpression(_nameRepository, isUnlimitedLiteralArgument(argumentIndex++)));
 		}
 	}
 	updateLocationEndFrom(ret.debugData, currentLocation());
@@ -695,28 +706,34 @@ FunctionCall Parser::parseCall(std::variant<Literal, Identifier>&& _initialOp)
 	return ret;
 }
 
-TypedName Parser::parseTypedName()
+TypedName Parser::parseTypedName(YulNameRepository& _nameRepository)
 {
 	RecursionGuard recursionGuard(*this);
 	TypedName typedName = createWithDebugData<TypedName>();
-	typedName.name = expectAsmIdentifier();
+	typedName.name = expectAsmIdentifier(_nameRepository);
 	if (currentToken() == Token::Colon)
 	{
 		expectToken(Token::Colon);
 		updateLocationEndFrom(typedName.debugData, currentLocation());
-		typedName.type = expectAsmIdentifier();
+		typedName.type = expectAsmIdentifier(_nameRepository);
 	}
 	else
-		typedName.type = m_dialect.defaultType;
+		typedName.type = _nameRepository.predefined().defaultType;
 
 	return typedName;
 }
 
-YulString Parser::expectAsmIdentifier()
+Type Parser::expectAsmIdentifier(YulNameRepository& _nameRepository)
 {
-	YulString name{currentLiteral()};
-	if (currentToken() == Token::Identifier && m_dialect.builtin(name))
-		fatalParserError(5568_error, "Cannot use builtin function name \"" + name.str() + "\" as identifier name.");
+	auto const name = _nameRepository.defineName(currentLiteral());
+	if (currentToken() == Token::Identifier && _nameRepository.dialect().builtin(currentLiteral()))
+		fatalParserError(
+			5568_error,
+			fmt::format(
+				"Cannot use builtin function name \"{}\" as identifier name.",
+				currentLiteral()
+			)
+		);
 	// NOTE: We keep the expectation here to ensure the correct source location for the error above.
 	expectToken(Token::Identifier);
 	return name;

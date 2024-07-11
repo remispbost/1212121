@@ -25,6 +25,7 @@
 #include <libyul/backends/evm/EVMDialect.h>
 #include <libyul/YulStack.h>
 #include <libyul/AsmAnalysisInfo.h>
+#include <libyul/AST.h>
 
 #include <liblangutil/DebugInfoSelection.h>
 #include <liblangutil/ErrorReporter.h>
@@ -97,8 +98,8 @@ std::string YulInterpreterTest::interpret()
 	{
 		Interpreter::run(
 			state,
-			EVMDialect::strictAssemblyForEVMObjects(solidity::test::CommonOptions::get().evmVersion()),
-			*m_ast,
+			m_ast->nameRepository(),
+			m_ast->block(),
 			/*disableExternalCalls=*/ !m_simulateExternalCallsToSelf,
 			/*disableMemoryTracing=*/ false
 		);

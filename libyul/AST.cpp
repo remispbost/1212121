@@ -17,10 +17,18 @@ along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0
 
 #include <libyul/AST.h>
+
+#include <libyul/optimiser/ASTCopier.h>
 #include <libyul/Exceptions.h>
 
 namespace solidity::yul
 {
+
+AST::AST(YulNameRepository _nameRepository, Block _block):
+	m_nameRepository(std::move(_nameRepository)), m_block(std::move(_block))
+{
+	m_nameRepository.generateLabels(m_block);
+}
 
 LiteralValue::LiteralValue(std::string _builtinStringLiteralValue):
 	m_numericValue(std::nullopt),

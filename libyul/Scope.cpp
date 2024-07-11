@@ -25,7 +25,7 @@ using namespace solidity;
 using namespace solidity::yul;
 using namespace solidity::util;
 
-bool Scope::registerVariable(YulString _name, YulType const& _type)
+bool Scope::registerVariable(YulName const _name, YulType const& _type)
 {
 	if (exists(_name))
 		return false;
@@ -33,18 +33,20 @@ bool Scope::registerVariable(YulString _name, YulType const& _type)
 	variable.type = _type;
 	variable.name = _name;
 	identifiers[_name] = variable;
+	identifierLabels.emplace(_name);
 	return true;
 }
 
-bool Scope::registerFunction(YulString _name, std::vector<YulType> _arguments, std::vector<YulType> _returns)
+bool Scope::registerFunction(YulName const _name, std::vector<YulType> _arguments, std::vector<YulType> _returns)
 {
 	if (exists(_name))
 		return false;
 	identifiers[_name] = Function{std::move(_arguments), std::move(_returns), _name};
+	identifierLabels.emplace(_name);
 	return true;
 }
 
-Scope::Identifier* Scope::lookup(YulString _name)
+Scope::Identifier* Scope::lookup(YulName _name)
 {
 	bool crossedFunctionBoundary = false;
 	for (Scope* s = this; s; s = s->superScope)
@@ -64,9 +66,9 @@ Scope::Identifier* Scope::lookup(YulString _name)
 	return nullptr;
 }
 
-bool Scope::exists(YulString _name) const
+bool Scope::exists(YulName const _name) const
 {
-	if (identifiers.count(_name))
+	if (identifierLabels.count(_name))
 		return true;
 	else if (superScope)
 		return superScope->exists(_name);

@@ -55,8 +55,8 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 	for (auto const& subNode: _object.subObjects)
 		if (auto* subObject = dynamic_cast<Object*>(subNode.get()))
 		{
-			bool isCreation = !boost::ends_with(subObject->name.str(), "_deployed");
-			auto subAssemblyAndID = m_assembly.createSubAssembly(isCreation, subObject->name.str());
+			bool isCreation = !boost::ends_with(subObject->name, "_deployed");
+			auto subAssemblyAndID = m_assembly.createSubAssembly(isCreation, subObject->name);
 			context.subIDs[subObject->name] = subAssemblyAndID.second;
 			subObject->subId = subAssemblyAndID.second;
 			compile(*subObject, *subAssemblyAndID.first, m_dialect, _optimize, m_eofVersion);
@@ -65,7 +65,7 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 		{
 			Data const& data = dynamic_cast<Data const&>(*subNode);
 			// Special handling of metadata.
-			if (data.name.str() == Object::metadataName())
+			if (data.name == Object::metadataName())
 				m_assembly.appendToAuxiliaryData(data.data);
 			else
 				context.subIDs[data.name] = m_assembly.appendData(data.data);
@@ -83,16 +83,16 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 		auto stackErrors = OptimizedEVMCodeTransform::run(
 			m_assembly,
 			*_object.analysisInfo,
-			*_object.code,
-			m_dialect,
+			_object.code->block(),
+			_object.code->nameRepository(),
 			context,
 			OptimizedEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
 		);
 		if (!stackErrors.empty())
 		{
-			std::vector<FunctionCall*> memoryGuardCalls = FunctionCallFinder::run(
-				*_object.code,
-				"memoryguard"_yulstring
+			std::vector<FunctionCall const*> memoryGuardCalls = FunctionCallFinder::run(
+				_object.code->block(),
+				_object.code->nameRepository().predefined().memoryguard
 			);
 			auto stackError = stackErrors.front();
 			std::string msg = stackError.comment() ? *stackError.comment() : "";
@@ -113,14 +113,15 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 		CodeTransform transform{
 			m_assembly,
 			*_object.analysisInfo,
-			*_object.code,
+			_object.code->nameRepository(),
+			_object.code->block(),
 			m_dialect,
 			context,
 			_optimize,
 			{},
 			CodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
 		};
-		transform(*_object.code);
+		transform(_object.code->block());
 		if (!transform.stackErrors().empty())
 			BOOST_THROW_EXCEPTION(transform.stackErrors().front());
 	}

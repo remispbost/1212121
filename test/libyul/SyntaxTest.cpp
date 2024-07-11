@@ -45,7 +45,7 @@ void SyntaxTest::parseAndAnalyze()
 	std::string const& source = m_sources.sources.begin()->second;
 
 	ErrorList errorList{};
-	soltestAssert(m_dialect, "");
+	soltestAssert(m_dialect);
 	// Silently ignoring the results.
 	yul::test::parse(source, *m_dialect, errorList);
 	for (auto const& error: errorList)

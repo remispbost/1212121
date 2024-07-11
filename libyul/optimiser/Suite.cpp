@@ -57,11 +57,9 @@
 #include <libyul/optimiser/SyntacticalEquality.h>
 #include <libyul/optimiser/UnusedAssignEliminator.h>
 #include <libyul/optimiser/UnusedStoreEliminator.h>
-#include <libyul/optimiser/VarNameCleaner.h>
 #include <libyul/optimiser/LoadResolver.h>
 #include <libyul/optimiser/LoopInvariantCodeMotion.h>
 #include <libyul/optimiser/Metrics.h>
-#include <libyul/optimiser/NameSimplifier.h>
 #include <libyul/backends/evm/ConstantOptimiser.h>
 #include <libyul/AsmAnalysis.h>
 #include <libyul/AsmAnalysisInfo.h>
@@ -134,34 +132,32 @@ void outputPerformanceMetrics(map<string, int64_t> const& _metrics)
 
 
 void OptimiserSuite::run(
-	Dialect const& _dialect,
 	GasMeter const* _meter,
 	Object& _object,
 	bool _optimizeStackAllocation,
 	std::string_view _optimisationSequence,
 	std::string_view _optimisationCleanupSequence,
 	std::optional<size_t> _expectedExecutionsPerDeployment,
-	std::set<YulString> const& _externallyUsedIdentifiers
+	std::set<YulName> const& _externallyUsedIdentifiers
 )
 {
-	EVMDialect const* evmDialect = dynamic_cast<EVMDialect const*>(&_dialect);
+	auto const& dialect = _object.code->nameRepository().dialect();
+	EVMDialect const* evmDialect = dynamic_cast<EVMDialect const*>(&dialect);
 	bool usesOptimizedCodeGenerator =
 		_optimizeStackAllocation &&
 		evmDialect &&
 		evmDialect->evmVersion().canOverchargeGasForCall() &&
 		evmDialect->providesObjectAccess();
-	std::set<YulString> reservedIdentifiers = _externallyUsedIdentifiers;
-	reservedIdentifiers += _dialect.fixedFunctionNames();
+	std::set<YulName> reservedIdentifiers = _externallyUsedIdentifiers;
 
-	*_object.code = std::get<Block>(Disambiguator(
-		_dialect,
+	YulNameRepository nameRepository (_object.code->nameRepository());
+	auto ast = std::get<Block>(Disambiguator(
+		nameRepository,
 		*_object.analysisInfo,
 		reservedIdentifiers
-	)(*_object.code));
-	Block& ast = *_object.code;
+	)(_object.code->block()));
 
-	NameDispenser dispenser{_dialect, ast, reservedIdentifiers};
-	OptimiserStepContext context{_dialect, dispenser, reservedIdentifiers, _expectedExecutionsPerDeployment};
+	OptimiserStepContext context{dialect, nameRepository, reservedIdentifiers, _expectedExecutionsPerDeployment};
 
 	OptimiserSuite suite(context, Debug::None);
 
@@ -169,7 +165,6 @@ void OptimiserSuite::run(
 	// ForLoopInitRewriter. Run them first to be able to run arbitrary sequences safely.
 	suite.runSequence("hgfo", ast);
 
-	NameSimplifier::run(suite.m_context, ast);
 	// Now the user-supplied part
 	suite.runSequence(_optimisationSequence, ast);
 
@@ -180,12 +175,10 @@ void OptimiserSuite::run(
 	// We ignore the return value because we will get a much better error
 	// message once we perform code generation.
 	if (!usesOptimizedCodeGenerator)
-		StackCompressor::run(
-			_dialect,
-			_object,
-			_optimizeStackAllocation,
-			stackCompressorMaxIterations
-		);
+	{
+		nameRepository.generateLabels(ast);
+		StackCompressor::run(nameRepository, ast, _object, _optimizeStackAllocation, stackCompressorMaxIterations);
+	}
 
 	// Run the user-supplied clean up sequence
 	suite.runSequence(_optimisationCleanupSequence, ast);
@@ -197,31 +190,29 @@ void OptimiserSuite::run(
 	if (evmDialect)
 	{
 		yulAssert(_meter, "");
-		ConstantOptimiser{*evmDialect, *_meter}(ast);
+		ConstantOptimiser{nameRepository, *evmDialect, *_meter}(ast);
 		if (usesOptimizedCodeGenerator)
 		{
+			nameRepository.generateLabels(ast);
 			StackCompressor::run(
-				_dialect,
+				nameRepository,
+				ast,
 				_object,
 				_optimizeStackAllocation,
 				stackCompressorMaxIterations
 			);
 			if (evmDialect->providesObjectAccess())
-				StackLimitEvader::run(suite.m_context, _object);
+				StackLimitEvader::run(suite.m_context, ast, _object);
 		}
 		else if (evmDialect->providesObjectAccess() && _optimizeStackAllocation)
-			StackLimitEvader::run(suite.m_context, _object);
+			StackLimitEvader::run(suite.m_context, ast, _object);
 	}
-
-	dispenser.reset(ast);
-	NameSimplifier::run(suite.m_context, ast);
-	VarNameCleaner::run(suite.m_context, ast);
 
 #ifdef PROFILE_OPTIMIZER_STEPS
 	outputPerformanceMetrics(suite.m_durationPerStepInMicroseconds);
 #endif
-
-	*_object.analysisInfo = AsmAnalyzer::analyzeStrictAssertCorrect(_dialect, _object);
+	_object.code = std::make_shared<AST>(std::move(nameRepository), std::move(ast));
+	*_object.analysisInfo = AsmAnalyzer::analyzeStrictAssertCorrect(_object);
 }
 
 namespace
@@ -510,7 +501,7 @@ void OptimiserSuite::runSequence(std::vector<std::string> const& _steps, Block& 
 			else
 			{
 				std::cout << "== Running " << step << " changed the AST." << std::endl;
-				std::cout << AsmPrinter{}(_ast) << std::endl;
+				std::cout << AsmPrinter{m_context.yulNameRepository}(_ast) << std::endl;
 				copy = std::make_unique<Block>(std::get<Block>(ASTCopier{}(_ast)));
 			}
 		}

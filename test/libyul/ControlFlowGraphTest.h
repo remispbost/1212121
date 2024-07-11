@@ -23,6 +23,7 @@
 namespace solidity::yul
 {
 struct Dialect;
+class YulNameRepository;
 
 namespace test
 {
