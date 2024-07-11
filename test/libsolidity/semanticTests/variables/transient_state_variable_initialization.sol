@@ -7,6 +7,7 @@ contract C {
 
 }
 // ====
+// EVMVersion: >=cancun
 // compileViaYul: false
 // ----
 // constructor()
