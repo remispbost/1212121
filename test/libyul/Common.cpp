@@ -96,7 +96,8 @@ yul::Block yul::test::disambiguate(std::string const& _source, bool _yul)
 
 std::string yul::test::format(std::string const& _source, bool _yul)
 {
-	return yul::AsmPrinter()(parse(_source, _yul).first->block());
+	auto [ast, _] = parse(_source, _yul);
+	return yul::AsmPrinter(yul::AsmPrinter::Mode::FullTypeInfo, ast->nameRepository())(ast->block());
 }
 
 namespace
