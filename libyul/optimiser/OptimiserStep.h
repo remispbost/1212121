@@ -31,10 +31,12 @@ struct Dialect;
 struct Block;
 class YulString;
 class NameDispenser;
+class YulNameRepository;
 
 struct OptimiserStepContext
 {
 	Dialect const& dialect;
+	YulNameRepository& nameRepository;
 	NameDispenser& dispenser;
 	std::set<YulString> const& reservedIdentifiers;
 	/// The value nullopt represents creation code
