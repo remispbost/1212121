@@ -24,6 +24,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/YulName.h>
 #include <libyul/YulString.h>
 
 #include <liblangutil/DebugData.h>
@@ -105,10 +106,14 @@ struct Leave { langutil::DebugData::ConstPtr debugData; };
 class AST
 {
 public:
-	explicit AST(Block _block): m_block(std::move(_block)) {}
+	explicit AST(YulNameRepository _nameRepository, Block _block):
+		m_nameRepository(std::move(_nameRepository)), m_block(std::move(_block)) {}
 
 	Block const& block() const { return m_block; }
+	YulNameRepository const& nameRepository() const { return m_nameRepository; }
+
 private:
+	YulNameRepository m_nameRepository;
 	Block m_block;
 };
 

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/YulName.h>
 #include <libyul/YulString.h>
 
 #include <liblangutil/CharStreamProvider.h>
@@ -40,8 +41,6 @@ struct Dialect;
 struct AsmAnalysisInfo;
 
 using SourceNameMap = std::map<unsigned, std::shared_ptr<std::string const>>;
-
-struct Object;
 
 /**
  * Generic base class for both Yul objects and Yul data.
@@ -98,7 +97,7 @@ public:
 		langutil::CharStreamProvider const* _soliditySourceProvider = nullptr
 	) const;
 	/// @returns a compact JSON representation of the AST.
-	Json toJson() const;
+	Json toJson() const override;
 	/// @returns the set of names of data objects accessible from within the code of
 	/// this object, including the name of object itself
 	/// Handles all names containing dots as reserved identifiers, not accessible as data.

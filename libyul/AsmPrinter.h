@@ -24,6 +24,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/YulName.h>
 #include <libyul/YulString.h>
 
 #include <libsolutil/CommonData.h>
