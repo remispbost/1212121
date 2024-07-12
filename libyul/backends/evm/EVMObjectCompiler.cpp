@@ -83,15 +83,15 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 		auto stackErrors = OptimizedEVMCodeTransform::run(
 			m_assembly,
 			*_object.analysisInfo,
-			*_object.code,
+			_object.code->block(),
 			m_dialect,
 			context,
 			OptimizedEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
 		);
 		if (!stackErrors.empty())
 		{
-			std::vector<FunctionCall*> memoryGuardCalls = FunctionCallFinder::run(
-				*_object.code,
+			std::vector<FunctionCall const*> memoryGuardCalls = findFunctionCalls(
+				_object.code->block(),
 				"memoryguard"_yulstring
 			);
 			auto stackError = stackErrors.front();
@@ -113,14 +113,14 @@ void EVMObjectCompiler::run(Object& _object, bool _optimize)
 		CodeTransform transform{
 			m_assembly,
 			*_object.analysisInfo,
-			*_object.code,
+			_object.code->block(),
 			m_dialect,
 			context,
 			_optimize,
 			{},
 			CodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
 		};
-		transform(*_object.code);
+		transform(_object.code->block());
 		if (!transform.stackErrors().empty())
 			BOOST_THROW_EXCEPTION(transform.stackErrors().front());
 	}
