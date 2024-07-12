@@ -7,6 +7,7 @@ Language Features:
 
 
 Compiler Features:
+ * Code Generator: Transient storage state variables are now supported by the legacy pipeline.
  * Commandline Interface: Output transient storage layout with option ``--transient-storage-layout``.
  * Error Reporting: Unimplemented features are now properly reported as errors instead of being handled as if they were bugs.
  * EVM: Support for the EVM version "Prague".
