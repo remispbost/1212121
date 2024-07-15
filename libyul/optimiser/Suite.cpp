@@ -192,30 +192,31 @@ void OptimiserSuite::run(
 	// Hard-coded FunctionGrouper step is used to bring the AST into a canonical form required by the StackCompressor
 	// and StackLimitEvader. This is hard-coded as the last step, as some previously executed steps may break the
 	// aforementioned form, thus causing the StackCompressor/StackLimitEvader to throw.
-	suite.runSequence("g", ast);
+	//suite.runSequence("g", ast);
 
 	if (evmDialect)
 	{
 		yulAssert(_meter, "");
 		ConstantOptimiser{*evmDialect, *_meter}(ast);
-		if (usesOptimizedCodeGenerator)
-		{
-			StackCompressor::run(
-				_dialect,
-				_object,
-				_optimizeStackAllocation,
-				stackCompressorMaxIterations
-			);
-			if (evmDialect->providesObjectAccess())
-				StackLimitEvader::run(suite.m_context, _object);
-		}
-		else if (evmDialect->providesObjectAccess() && _optimizeStackAllocation)
-			StackLimitEvader::run(suite.m_context, _object);
+		//if (usesOptimizedCodeGenerator)
+		//{
+		//	StackCompressor::run(
+		//		_dialect,
+		//		_object,
+		//		_optimizeStackAllocation,
+		//		stackCompressorMaxIterations
+		//	);
+		//	if (evmDialect->providesObjectAccess())
+		//		StackLimitEvader::run(suite.m_context, _object);
+		//}
+		//else if (evmDialect->providesObjectAccess() && _optimizeStackAllocation)
+		//	StackLimitEvader::run(suite.m_context, _object);
 	}
+	suite.runSequence("xTu", ast);
 
 	dispenser.reset(ast);
-	NameSimplifier::run(suite.m_context, ast);
-	VarNameCleaner::run(suite.m_context, ast);
+//	NameSimplifier::run(suite.m_context, ast);
+//	VarNameCleaner::run(suite.m_context, ast);
 
 #ifdef PROFILE_OPTIMIZER_STEPS
 	outputPerformanceMetrics(suite.m_durationPerStepInMicroseconds);

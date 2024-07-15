@@ -273,7 +273,10 @@ void ControlFlowGraphBuilder::operator()(VariableDeclaration const& _varDecl)
 	}) | ranges::to<std::vector<VariableSlot>>;
 	Stack input;
 	if (_varDecl.value)
-		input = visitAssignmentRightHandSide(*_varDecl.value, declaredVariables.size());
+	{
+		visitAssignment(_varDecl.debugData, std::move(declaredVariables), *_varDecl.value);
+		return;
+	}
 	else
 		input = Stack(_varDecl.variables.size(), LiteralSlot{0, _varDecl.debugData});
 	m_currentBlock->operations.emplace_back(CFG::Operation{
@@ -287,16 +290,7 @@ void ControlFlowGraphBuilder::operator()(Assignment const& _assignment)
 	auto assignedVariables = _assignment.variableNames | ranges::views::transform([&](Identifier const& _var) {
 		return VariableSlot{lookupVariable(_var.name), _var.debugData};
 	}) | ranges::to<std::vector<VariableSlot>>;
-
-	Stack input = visitAssignmentRightHandSide(*_assignment.value, assignedVariables.size());
-	yulAssert(m_currentBlock);
-	m_currentBlock->operations.emplace_back(CFG::Operation{
-		std::move(input),
-		// output
-		assignedVariables | ranges::to<Stack>,
-		// operation
-		CFG::Assignment{_assignment.debugData, assignedVariables}
-	});
+	visitAssignment(_assignment.debugData, std::move(assignedVariables), *_assignment.value);
 }
 void ControlFlowGraphBuilder::operator()(ExpressionStatement const& _exprStmt)
 {
@@ -335,37 +329,50 @@ void ControlFlowGraphBuilder::operator()(Switch const& _switch)
 	yulAssert(m_currentBlock, "");
 	langutil::DebugData::ConstPtr preSwitchDebugData = debugDataOf(_switch);
 
-	auto ghostVariableId = m_graph.ghostVariables.size();
-	YulString ghostVariableName("GHOST[" + std::to_string(ghostVariableId) + "]");
-	auto& ghostVar = m_graph.ghostVariables.emplace_back(Scope::Variable{""_yulstring, ghostVariableName});
+	auto makeGhostVariable = [&](auto _debugData) -> VariableSlot {
+		auto ghostVariableId = m_graph.ghostVariables.size();
+		YulString ghostVariableName("GHOST[" + std::to_string(ghostVariableId) + "]");
+		auto& ghostVar = m_graph.ghostVariables.emplace_back(Scope::Variable{""_yulstring, ghostVariableName});
+		return VariableSlot{ghostVar, _debugData};
+	};
 
-	// Artificially generate:
-	// let <ghostVariable> := <switchExpression>
-	VariableSlot ghostVarSlot{ghostVar, debugDataOf(*_switch.expression)};
 	StackSlot expression = std::visit(*this, *_switch.expression);
-	m_currentBlock->operations.emplace_back(CFG::Operation{
-		Stack{std::move(expression)},
-		Stack{ghostVarSlot},
-		CFG::Assignment{_switch.debugData, {ghostVarSlot}}
-	});
+	Expression switchExpression = *_switch.expression;
+	if (!(std::holds_alternative<LiteralSlot>(expression) || std::holds_alternative<VariableSlot>(expression)))
+	{
+		// Artificially generate:
+		// let <ghostVariable> := <switchExpression>
+		VariableSlot ghostVarSlot = makeGhostVariable(debugDataOf(*_switch.expression));
+		m_currentBlock->operations.emplace_back(CFG::Operation{
+			Stack{std::move(expression)},
+			Stack{ghostVarSlot},
+			CFG::Assignment{_switch.debugData, {ghostVarSlot}}
+		});
+		expression = std::move(ghostVarSlot);
+		switchExpression = Identifier{
+			ghostVarSlot.debugData,
+			ghostVarSlot.variable.get().name
+		};
+	}
 
 	BuiltinFunction const* equalityBuiltin = m_dialect.equalityFunction({});
 	yulAssert(equalityBuiltin, "");
 
 	// Artificially generate:
-	// eq(<literal>, <ghostVariable>)
+	// eq(<literal>, <expression>)
 	auto makeValueCompare = [&](Case const& _case) {
 		yul::FunctionCall const& ghostCall = m_graph.ghostCalls.emplace_back(yul::FunctionCall{
 			debugDataOf(_case),
 			yul::Identifier{{}, "eq"_yulstring},
-			{*_case.value, Identifier{{}, ghostVariableName}}
+			{*_case.value, switchExpression}
 		});
-		CFG::Operation& operation = m_currentBlock->operations.emplace_back(CFG::Operation{
-			Stack{ghostVarSlot, LiteralSlot{_case.value->value.value(), debugDataOf(*_case.value)}},
-			Stack{TemporarySlot{ghostCall, 0}},
+		VariableSlot ghostVarSlot = makeGhostVariable(debugDataOf(_case));
+		m_currentBlock->operations.emplace_back(CFG::Operation{
+			Stack{expression, LiteralSlot{_case.value->value.value(), debugDataOf(*_case.value)}},
+			Stack{ghostVarSlot},
 			CFG::BuiltinCall{debugDataOf(_case), *equalityBuiltin, ghostCall, 2},
 		});
-		return operation.output.front();
+		return ghostVarSlot;
 	};
 	CFG::BasicBlock& afterSwitch = m_graph.makeBlock(preSwitchDebugData);
 	yulAssert(!_switch.cases.empty(), "");
@@ -563,17 +570,26 @@ Stack const& ControlFlowGraphBuilder::visitFunctionCall(FunctionCall const& _cal
 	return *output;
 }
 
-Stack ControlFlowGraphBuilder::visitAssignmentRightHandSide(Expression const& _expression, size_t _expectedSlotCount)
+void ControlFlowGraphBuilder::visitAssignment(langutil::DebugData::ConstPtr _debugData, std::vector<VariableSlot> _assignedVariables, Expression const& _expression)
 {
-	return std::visit(util::GenericVisitor{
-		[&](FunctionCall const& _call) -> Stack {
+	std::visit(util::GenericVisitor{
+		[&](FunctionCall const& _call) {
 			Stack const& output = visitFunctionCall(_call);
-			yulAssert(_expectedSlotCount == output.size(), "");
-			return output;
+			yulAssert(_assignedVariables.size() == output.size(), "");
+			// TODO: Hack: operations are empty, if the function was non-returning, in which case the rest of the block doesn't matter
+			if (!m_currentBlock->operations.empty())
+			{
+				yulAssert(m_currentBlock->operations.back().output.size() == _assignedVariables.size(), "");
+				m_currentBlock->operations.back().output = _assignedVariables | ranges::to<Stack>;
+			}
 		},
-		[&](auto const& _identifierOrLiteral) -> Stack {
-			yulAssert(_expectedSlotCount == 1, "");
-			return {(*this)(_identifierOrLiteral)};
+		[&](auto const& _identifierOrLiteral) {
+			yulAssert(_assignedVariables.size() == 1, "");
+			m_currentBlock->operations.emplace_back(CFG::Operation{
+				{(*this)(_identifierOrLiteral)},
+				_assignedVariables | ranges::to<Stack>,
+				CFG::Assignment{_debugData, _assignedVariables}
+			});
 		}
 	}, _expression);
 }
