@@ -2,31 +2,39 @@
     "contracts": {
         "fileA": {
             "A": {
-                "storageLayout": {
-                    "storage": [
+                "transientStorageLayout": {
+                    "transient-storage": [
                         {
-                            "astId": 5,
+                            "astId": 3,
                             "contract": "fileA:A",
-                            "label": "y",
+                            "label": "x",
                             "offset": 0,
                             "slot": "0",
                             "type": "t_uint256"
                         },
                         {
-                            "astId": 9,
+                            "astId": 5,
                             "contract": "fileA:A",
-                            "label": "c",
+                            "label": "y",
                             "offset": 0,
                             "slot": "1",
-                            "type": "t_bytes32"
+                            "type": "t_int256"
                         },
                         {
-                            "astId": 13,
+                            "astId": 7,
                             "contract": "fileA:A",
-                            "label": "z",
+                            "label": "addr",
                             "offset": 0,
                             "slot": "2",
                             "type": "t_address"
+                        },
+                        {
+                            "astId": 9,
+                            "contract": "fileA:A",
+                            "label": "b",
+                            "offset": 20,
+                            "slot": "2",
+                            "type": "t_bool"
                         }
                     ],
                     "types": {
@@ -35,9 +43,14 @@
                             "label": "address",
                             "numberOfBytes": "20"
                         },
-                        "t_bytes32": {
+                        "t_bool": {
                             "encoding": "inplace",
-                            "label": "bytes32",
+                            "label": "bool",
+                            "numberOfBytes": "1"
+                        },
+                        "t_int256": {
+                            "encoding": "inplace",
+                            "label": "int256",
                             "numberOfBytes": "32"
                         },
                         "t_uint256": {
