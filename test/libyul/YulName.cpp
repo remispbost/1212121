@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(repository_with_blank_dialect)
 	YulNameRepository nameRepository(dialect);
 	BOOST_CHECK(!nameRepository.isEvmDialect());
 	BOOST_CHECK(nameRepository.nTypes() == 1);
-	nameRepository.isType(YulNameRepository::emptyName());
+	BOOST_CHECK(nameRepository.isType(YulNameRepository::emptyName()));
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().empty).value().empty());
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().datasize) == "datasize");
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().dataoffset) == "dataoffset");
@@ -46,6 +46,13 @@ BOOST_AUTO_TEST_CASE(repository_with_blank_dialect)
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().eq) == "eq");
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().add) == "add");
 	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().sub) == "sub");
+	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().tstore) == "tstore");
+	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().placeholder_zero) == "@ 0");
+	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().placeholder_one) == "@ 1");
+	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().placeholder_thirtytwo) == "@ 32");
+	BOOST_CHECK(nameRepository.labelOf(nameRepository.predefined().verbatim) == "@ verbatim");
+	BOOST_CHECK(nameRepository.predefined().defaultType == nameRepository.emptyName());
+	BOOST_CHECK(nameRepository.predefined().boolType == nameRepository.emptyName());
 }
 
 BOOST_AUTO_TEST_CASE(repository_generate_labels_for_derived_types)
@@ -124,6 +131,8 @@ BOOST_AUTO_TEST_CASE(repository_with_typed_evm_dialect)
 	BOOST_CHECK(nameRepository.isEvmDialect());
 	auto const wordType = nameRepository.nameOfType("u256");
 	auto const boolType = nameRepository.nameOfType("bool");
+	BOOST_CHECK(wordType == nameRepository.predefined().defaultType);
+	BOOST_CHECK(boolType == nameRepository.predefined().boolType);
 	BOOST_CHECK(nameRepository.labelOf(wordType) == "u256");
 	BOOST_CHECK(nameRepository.labelOf(boolType) == "bool");
 	BOOST_CHECK(nameRepository.isType(wordType));

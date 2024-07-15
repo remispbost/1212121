@@ -32,10 +32,8 @@ namespace solidity::yul
 YulNameRepository::YulNameRepository(solidity::yul::Dialect const& _dialect):
 	m_dialect(_dialect)
 {
-	{
-		auto const emptyName = defineName("");
-		yulAssert(emptyName == YulNameRepository::emptyName());
-	}
+	m_predefined.empty = defineName("");
+	yulAssert(m_predefined.empty == YulNameRepository::emptyName());
 
 	for (auto const& type: _dialect.types)
 		if (type.empty())

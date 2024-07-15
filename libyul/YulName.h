@@ -40,12 +40,36 @@ struct Dialect;
 struct Block;
 struct BuiltinFunction;
 
+/**
+ * Yul Name repository.
+ *
+ * A database of numerical identifiers for Yul nodes in an AST (``YulName``s). Identifiers can be
+ *
+ *  - 'defined', i.e., they are equipped with a string label, which can be retrieved by a call to ``labelOf(yulName)``;
+ *  - 'derived', i.e., they don't possess a string label but have a parent yul name which is either also derived or
+ *    defined. All dependency chains of derived labels terminate in a defined label.
+ *
+ * Such derived identifiers can be introduced, e.g., during certain optimization steps. If the AST (or segments thereof)
+ * should be printed and/or the string label of identifiers should be retrieved which are still in derived state,
+ * a call to ``generateLabels(identifiers)`` changes the status of all derived labels to defined and generates
+ * unique labels for all identifiers provided to the method. The generated labels are based on their parents.
+ *
+ * The second purpose of the YulNameRepository is acting as a proxy for a ``yul::Dialect``. Builtins as well
+ * as types are mapped to entries in the repository and can be queried using corresponding methods.
+ *
+ * There are two special cases:
+ *  - verbatim functions are builtin functions which are already variable, therefore they are derived from a common
+ *    ancestor ``PredefinedHandles.verbatim`` but don't need a label generated for them, as the label is already
+ *    defined by their number of inputs and outputs
+ *  - GHOST variables are used for specific transformations in the ``ControlFlowGraph`` and can be added
+ *    using ``addGhost``. These always fall under the 'defined' category.
+ */
 class YulNameRepository
 {
 public:
 	using YulName = size_t;
 
-	/// Decorating a yul dialect builtin function with `YulName`s.
+	/// Decorating a yul dialect builtin function with ``YulName``s.
 	struct BuiltinFunction
 	{
 		YulName name;
@@ -55,24 +79,24 @@ public:
 		yul::BuiltinFunction const* data;
 	};
 
+	/// A couple of predefined yul names, most of which are dialect builtins.
 	struct PredefinedHandles
 	{
-		YulName empty {};
-		YulName verbatim {};
-		YulName boolType {};
-		YulName hashFunction {};
-		YulName datasize {};
-		YulName dataoffset {};
-		YulName selfdestruct {};
-		YulName memoryguard {};
-		YulName eq {};
-		YulName add {};
-		YulName sub {};
-		YulName tstore {};
-		YulName defaultType {};
-		YulName placeholder_zero {};
-		YulName placeholder_one {};
-		YulName placeholder_thirtytwo {};
+		YulName empty {}; ///< Special empty name (corresponding to the empty label).
+		YulName verbatim {}; ///< Verbatim builtin parent name. All verbatims are derived from this.
+		YulName boolType {}; ///< Bool type. Depending on dialect, this may be zero/empty.
+		YulName datasize {}; ///< Datasize builtin.
+		YulName dataoffset {}; ///< Dataoffset builtin.
+		YulName selfdestruct {}; ///< Selfdestruct builtin.
+		YulName memoryguard {}; ///< Memoryguard builtin.
+		YulName eq {}; ///< Equality function.
+		YulName add {}; ///< Addition function.
+		YulName sub {}; ///< Subtraction function.
+		YulName tstore {}; ///< Tstore builtin.
+		YulName defaultType {}; ///< Dialect's default type. May be zero/empty.
+		YulName placeholder_zero {}; ///< Special name ``@ 0`` used in the ``UnusedStoreEliminator``.
+		YulName placeholder_one {}; ///< Special name ``@ 1`` used in the ``UnusedStoreEliminator``.
+		YulName placeholder_thirtytwo {}; ///< Special name ``@ 32`` used in the ``UnusedStoreEliminator``.
 	};
 
 	/// Construct via dialect. It is important that the dialect instance lives at least as long as the name repository
@@ -85,14 +109,16 @@ public:
 	YulNameRepository& operator=(YulNameRepository const&) = default;
 
 	/// Defines a new name based on a label. If the label already was defined, it returns the corresponding YulName
-	/// instead of a new one.
+	/// instead of a new one (``defineName("xyz") == defineName("xyz")``.
 	YulName defineName(std::string_view _label);
 
 	/// Defines a new name based on a parent name. When generating labels, the generated label will be based on the
-	/// parent's.
+	/// parent's (``deriveName(id) != deriveName(id)``).
 	YulName deriveName(YulName _id);
 
-	/// Adds a ghost name.
+	/// Adds a ghost name (``GHOST[n]``, where ``n`` is the number of times ``addGhost`` was called).
+	/// These are used for switch conditions in the ``ControlFlowGraph`` and do not need a label generated for them,
+	/// as they are already 'defined'.
 	YulName addGhost();
 
 	/// The empty name.
@@ -109,10 +135,10 @@ public:
 	std::string_view baseLabelOf(YulName _name) const;
 
 	/// Whether a name is considered derived, i.e., has no label but a parent name.
-	bool isDerivedName(YulName const _name) const { return std::get<1>(m_names[_name]) == YulNameState::DERIVED; }
+	[[nodiscard]] bool isDerivedName(YulName const _name) const { return std::get<1>(m_names[_name]) == YulNameState::DERIVED; }
 
 	/// Whether a name corresponds to a verbatim builtin function.
-	bool isVerbatimFunction(YulName _name) const;
+	[[nodiscard]] bool isVerbatimFunction(YulName _name) const;
 
 	/// A couple of predefined names.
 	PredefinedHandles const& predefined() const { return m_predefined; }
@@ -141,14 +167,16 @@ public:
 	YulName nameOfType(std::string_view type) const;
 
 	/// Whether the name is corresponding to a type.
-	bool isType(YulName _name) const;
+	[[nodiscard]] bool isType(YulName _name) const;
 
 	/// Number of types. If the dialect is untyped, there is still one type (the "empty type" type)
 	size_t nTypes() const;
 
+	/// The contained dialect.
 	Dialect const& dialect() const;
 
-	bool isEvmDialect() const;
+	/// Whether the contained dialect is an EVM dialect (see ``EVMDialect``).
+	[[nodiscard]] bool isEvmDialect() const;
 
 	/// Generates labels for derived names over the set of _usedNames, respecting a set of _illegal labels.
 	/// This will change the state of all derived names in _usedNames to "not derived" with a label associated to them.
