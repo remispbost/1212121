@@ -21,6 +21,7 @@
 #include <libyul/optimiser/NameDispenser.h>
 
 #include <libyul/AST.h>
+#include <libyul/YulName.h>
 
 namespace solidity::yul::unusedFunctionsCommon
 {
@@ -54,7 +55,8 @@ FunctionDefinition createLinkingFunction(
 	std::pair<std::vector<bool>, std::vector<bool>> const& _usedParametersAndReturns,
 	YulString const& _originalFunctionName,
 	YulString const& _linkingFunctionName,
-	NameDispenser& _nameDispenser
+	NameDispenser& _nameDispenser,
+	YulNameRepository& _nameRepository
 );
 
 }

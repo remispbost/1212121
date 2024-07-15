@@ -21,7 +21,9 @@
 
 #pragma once
 
+#include <libyul/AsmPrinter.h>
 #include <libyul/ASTForward.h>
+#include <libyul/YulName.h>
 #include <libyul/YulString.h>
 
 #include <liblangutil/CharStreamProvider.h>
@@ -41,8 +43,6 @@ struct AsmAnalysisInfo;
 
 using SourceNameMap = std::map<unsigned, std::shared_ptr<std::string const>>;
 
-struct Object;
-
 /**
  * Generic base class for both Yul objects and Yul data.
  */
@@ -54,7 +54,7 @@ struct ObjectNode
 	/// Can be empty since .yul files can also just contain code, without explicitly placing it in an object.
 	YulString name;
 	virtual std::string toString(
-		Dialect const* _dialect,
+		AsmPrinter::Mode printingMode,
 		langutil::DebugInfoSelection const& _debugInfoSelection,
 		langutil::CharStreamProvider const* _soliditySourceProvider
 	) const = 0;
@@ -71,7 +71,7 @@ struct Data: public ObjectNode
 	bytes data;
 
 	std::string toString(
-		Dialect const* _dialect,
+		AsmPrinter::Mode printingMode,
 		langutil::DebugInfoSelection const& _debugInfoSelection,
 		langutil::CharStreamProvider const* _soliditySourceProvider
 	) const override;
@@ -93,12 +93,12 @@ struct Object: public ObjectNode
 public:
 	/// @returns a (parseable) string representation.
 	std::string toString(
-		Dialect const* _dialect,
+		AsmPrinter::Mode printingMode = AsmPrinter::Mode::FullTypeInfo,
 		langutil::DebugInfoSelection const& _debugInfoSelection = langutil::DebugInfoSelection::Default(),
 		langutil::CharStreamProvider const* _soliditySourceProvider = nullptr
-	) const;
+	) const override;
 	/// @returns a compact JSON representation of the AST.
-	Json toJson() const;
+	Json toJson() const override;
 	/// @returns the set of names of data objects accessible from within the code of
 	/// this object, including the name of object itself
 	/// Handles all names containing dots as reserved identifiers, not accessible as data.
@@ -119,7 +119,7 @@ public:
 	/// sub id for object if it is subobject of another object, max value if it is not subobject
 	size_t subId = std::numeric_limits<size_t>::max();
 
-	std::shared_ptr<Block> code;
+	std::shared_ptr<AST> code;
 	std::vector<std::shared_ptr<ObjectNode>> subObjects;
 	std::map<YulString, size_t> subIndexByName;
 	std::shared_ptr<yul::AsmAnalysisInfo> analysisInfo;

@@ -32,7 +32,7 @@
 using namespace solidity;
 using namespace solidity::yul;
 
-KnowledgeBase::KnowledgeBase(std::map<YulString, AssignedValue> const& _ssaValues):
+KnowledgeBase::KnowledgeBase(std::map<YulString, AssignedValue> const& _ssaValues, YulNameRepository const&):
 	m_valuesAreSSA(true),
 	m_variableValues([_ssaValues](YulString _var) { return util::valueOrNullptr(_ssaValues, _var); })
 {}
