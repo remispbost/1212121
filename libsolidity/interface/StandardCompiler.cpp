@@ -1611,15 +1611,8 @@ Json StandardCompiler::compileYul(InputsAndSettings _inputsAndSettings)
 	std::string const& sourceContents = _inputsAndSettings.sources.begin()->second;
 
 	// Inconsistent state - stop here to receive error reports from users
-	if (!stack.parseAndAnalyze(sourceName, sourceContents) && stack.errors().empty())
-	{
-		output["errors"].emplace_back(formatError(
-			Error::Type::InternalCompilerError,
-			"general",
-			"No error reported, but compilation failed."
-		));
-		return output;
-	}
+	if (!stack.parseAndAnalyze(sourceName, sourceContents) && !Error::hasErrorsWarningsOrInfos(stack.errors()))
+		solAssert(false, "No error reported, but parsing/analysis failed.");
 
 	if (!stack.errors().empty())
 	{
