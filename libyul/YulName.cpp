@@ -379,13 +379,11 @@ void YulNameRepository::generateLabels(std::set<YulName> const& _usedNames, std:
 		{
 			auto const label = labelOf(name);
 			yulAssert(label.has_value());
-			auto const [_, emplaced] = used.emplace(*label);
-			if (!emplaced)
-			{
-				// there's been a clash (eg by calling generate labels twice), let's remove this name and derive
-				// it instead
+			auto const [it, emplaced] = used.emplace(*label);
+			if (!emplaced || _illegal.count(*it) > 0)
+				// there's been a clash ,e.g., by calling generate labels twice;
+				// let's remove this name and derive it instead
 				toDerive.insert(name);
-			}
 		}
 
 	std::vector<std::tuple<std::string, YulName>> generated;
@@ -400,9 +398,7 @@ void YulNameRepository::generateLabels(std::set<YulName> const& _usedNames, std:
 				std::string label (baseLabel);
 				size_t bump = 1;
 				while (used.count(label) > 0 || _illegal.count(label) > 0)
-				{
 					label = fmt::format(FMT_COMPILE("{}_{}"), baseLabel, bump++);
-				}
 				if (auto const existingDefinedName = nameOfLabel(label); existingDefinedName != emptyName() || name == emptyName())
 					m_names[name] = m_names[existingDefinedName];
 				else
@@ -415,6 +411,7 @@ void YulNameRepository::generateLabels(std::set<YulName> const& _usedNames, std:
 
 	for (auto const& [label, name] : generated)
 	{
+		yulAssert(_illegal.count(label) == 0);
 		m_definedLabels.emplace_back(label);
 		std::get<0>(m_names[name]) = m_definedLabels.size() - 1;
 		std::get<1>(m_names[name]) = YulNameState::DEFINED;

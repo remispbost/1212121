@@ -71,12 +71,13 @@ BOOST_AUTO_TEST_CASE(repository_generate_labels_for_derived_types)
 	auto const test2_1 = nameRepository.deriveName(test2);
 	auto const test3 = nameRepository.defineName("test3");
 	auto const test3_1 = nameRepository.deriveName(test3);
-	nameRepository.generateLabels({test1, test1_1, test1_2, test1_2_1, test2_1, test3, test3_1});
+	nameRepository.generateLabels({test1, test1_1, test1_2, test1_2_1, test2_1, test3, test3_1}, {"test1"});
 
-	BOOST_CHECK(nameRepository.labelOf(test1) == "test1");
-	BOOST_CHECK(nameRepository.labelOf(test1_1) == "test1_1");
-	BOOST_CHECK(nameRepository.labelOf(test1_2) == "test1_2");
-	BOOST_CHECK(nameRepository.labelOf(test1_2_1) == "test1_3");
+	// marking test1 as invalid means that all labels get bumped up by one
+	BOOST_CHECK(nameRepository.labelOf(test1) == "test1_1");
+	BOOST_CHECK(nameRepository.labelOf(test1_1) == "test1_2");
+	BOOST_CHECK(nameRepository.labelOf(test1_2) == "test1_3");
+	BOOST_CHECK(nameRepository.labelOf(test1_2_1) == "test1_4");
 
 	BOOST_CHECK(nameRepository.labelOf(test2) == "test2_1");
 	// the label of test2 is reused as it's not in the used names when generating labels
