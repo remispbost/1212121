@@ -385,6 +385,8 @@ void YulNameRepository::generateLabels(std::set<YulName> const& _usedNames, std:
 				// let's remove this name and derive it instead
 				toDerive.insert(name);
 		}
+		else
+			yulAssert(isDerivedName(name) || _illegal.count(std::string(*labelOf(name))) == 0);
 
 	std::vector<std::tuple<std::string, YulName>> generated;
 	auto namesIt = _usedNames.begin();
